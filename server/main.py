@@ -1,32 +1,39 @@
 import tempfile
 
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Circle, Plot
 from bokeh.models.widgets import FileInput
-from bokeh.plotting import curdoc, figure
+from bokeh.plotting import curdoc, figure, show
+from bokeh.layouts import row, column, layout
 
-
-import sys
-
-print(sys.path)
-
-
-from .io import from_text_to_dict
+from . import settings
+from .io import FileInputHandler
 from .utils import AttrDict
-from .templates import void_graph
+from .templates import void_graph, zero_graph
 
-# this must only be modified from a Bokeh session callback
-source = ColumnDataSource(void_graph)
+settings.init()
 
-doc = curdoc()
+# GLOBAL VARIABLES
 
-def upload_fit_data(attr, old, new):
-    print("fit data upload succeeded")
-    #csvpath = base64ToString(file_input.value)
-    print(file_input.filename)
+settings.GRAPH = zero_graph
+settings.SOURCE = ColumnDataSource(settings.GRAPH)
+DOC = curdoc()
 
-    from_text_to_dict(file_input.value)
+#---------------------------------------------------------------------------------------------------- 
 
-file_input = FileInput(accept=".csv,.json,.txt") # https://docs.bokeh.org/en/latest/docs/reference/models/widgets.inputs.html#bokeh.models.widgets.inputs.FileInput
-file_input.on_change('value', upload_fit_data)
+# ---------- Set all callbacks and buttons ---------- # 
 
-doc.add_root(file_input)
+file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/reference/models/widgets.inputs.html#bokeh.models.widgets.inputs.FileInput
+file_input.on_change('value', FileInputHandler.callback)
+
+control_pannel = file_input
+
+# --------- Display points -------- #
+
+plot = figure()
+plot.circle(x="loc_lat",
+            y="loc_long",
+            source=settings.SOURCE)
+
+
+layout = row(control_pannel, plot)
+DOC.add_root(layout)
