@@ -29,6 +29,7 @@ class GraphHelper(object):
  
         nodes_attr = pd.concat([h1, h2])
         nodes_attr = nodes_attr[~nodes_attr.index.duplicated()]
+        nodes_attr.sort_index(inplace=True)
         nodes_attr_dict = nodes_attr.to_dict(orient="index")
  
         nx.set_node_attributes(G, nodes_attr_dict)

@@ -43,9 +43,9 @@ def get_logger(logfile, level):
 class RetrieveLastConfig(object):
     @classmethod
     def main(cls):
-        graph = cls.retrieve_graph()
         return dict(
-            graph=graph
+            graph=cls.retrieve_graph(),
+            layout=cls.retrieve_layout_algo(),
         )
     
     @classmethod
@@ -57,9 +57,17 @@ class RetrieveLastConfig(object):
         graph = io.FileInputHandler.from_raw_to_graph(raw_data=raw_data) if raw_data != None else templates.get_random()
         LOGGER.info(f"graph : {graph}")
         return graph
+    
+    @classmethod
+    def retrieve_layout_algo(cls):
+        from . import io
+        from . import layouts
+        layout_string = io.JSONHandler.get("layout")
+        layout = layouts.get(layout_string) if layout_string != None else layouts.get_random()
+        return layout
 
 def create_globals():
-    global INITIALIZED, GRAPH, SOURCE, DOC, LOGGER, CACHE
+    global INITIALIZED, LOGGER, CACHE
     if not globals().get("INITIALIZED", False):
         INITIALIZED = True
         CACHE = AttrDict()
@@ -69,8 +77,9 @@ def create_globals():
         LOGGER = None
 
 def init(level=logging.DEBUG):
-    global GRAPH, SOURCE, DOC, LOGGER, CACHE
+    global LOGGER, CACHE
     LOGGER = get_logger(LOGFILE, level)
-    GRAPH = RetrieveLastConfig.retrieve_graph()
+    CACHE.layout = RetrieveLastConfig.retrieve_layout_algo()
+    CACHE.graph = RetrieveLastConfig.retrieve_graph()
 
 create_globals()

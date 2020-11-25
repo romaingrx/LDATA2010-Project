@@ -6,7 +6,7 @@ from io import StringIO
 from typing import Any, Tuple
 import tempfile
 
-from . import settings
+from . import settings, layouts
 from .settings import COLUMNS_NAME, CACHE
 from .graphs import GraphHelper
 from .utils import base64ToString
@@ -17,6 +17,7 @@ from collections import defaultdict
 class FileInputHandler(object):
     @classmethod 
     def callback(cls, attr, old, new) -> dict:
+        CACHE.plot.source.data = {}
         CACHE.graph = cls.from_raw_to_graph(new)
         JSONHandler.update_last_config(dict(
             source=dict(
@@ -25,7 +26,7 @@ class FileInputHandler(object):
         ))
     
     @classmethod
-    def from_raw_to_dict(cls, raw_data)->dict:
+    def from_raw64_to_dict(cls, raw_data)->dict:
         data = base64ToString(raw_data).replace(' ','')
 
         df = pd.read_csv(StringIO(data))
@@ -34,12 +35,15 @@ class FileInputHandler(object):
         df.columns = COLUMNS_NAME
         graph = df.to_dict(orient='list')
 
+        CACHE.df = df
+
         return graph
     
     @classmethod
     def from_raw_to_graph(cls, raw_data) -> nx.Graph:
-        graph_dict = cls.from_raw_to_dict(raw_data)
+        graph_dict = cls.from_raw64_to_dict(raw_data)
         graph = GraphHelper.from_dict_to_graph(graph_dict)
+        layouts.apply_on_graph()
         return graph
 
 class JSONHandler(object):

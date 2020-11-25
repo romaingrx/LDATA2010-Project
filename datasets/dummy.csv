@@ -1,0 +1,6 @@
+timestep ,person1 ,person2 ,infected1 ,infected2 ,loc_lat    ,loc_long   ,home1_lat  ,home1_long        ,home2_lat  ,home2_long
+0, 0, 1, 1, 0, 0, 0, 66, 66, 1, 1
+1, 0, 2, 1, 0, 0, 0, 66, 66, 2, 1
+2, 0, 3, 1, 0, 0, 0, 66, 66, 3, 1
+3, 0, 4, 1, 0, 0, 0, 66, 66, 4, 1
+4, 0, 5, 1, 0, 0, 0, 66, 66, 5, 1

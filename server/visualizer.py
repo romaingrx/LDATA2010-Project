@@ -1,7 +1,6 @@
+from .io import JSONHandler
 from . import settings, layouts
 from .settings import LOGGER, CACHE
-
-from holoviews.element.graphs import layout_nodes
 
 class VisualizerHandler(object):
 
@@ -18,11 +17,17 @@ class VisualizerHandler(object):
     @classmethod
     def layout_algo_callback(cls, event):
         settings.LOGGER.info(f"Layout algo \"{event.item}\" chosen")
+        JSONHandler.update_last_config(
+            dict(
+                layout=event.item
+            )
+        )
 
-        #TODO
+        CACHE.layout = layouts.get(event.item)
+        layouts.apply_on_graph()
+
     
     @classmethod
     def timestep_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Timestep \"{new}\" chosen")
-        layout_nodes(CACHE.plot.graph, layouts.get(new))
         #TODO

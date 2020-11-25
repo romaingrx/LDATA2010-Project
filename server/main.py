@@ -2,7 +2,7 @@ import tempfile
 
 from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer
 from bokeh.models.widgets import FileInput, Panel
-from bokeh.plotting import curdoc, figure, show, from_networkx
+from bokeh.plotting import curdoc, figure, show 
 from bokeh.layouts import row, column, layout
 from bokeh.palettes import Spectral8
 import networkx as nx
@@ -33,13 +33,11 @@ TOOLTIPS = [
 print(CACHE.plot.source.data)
 
 plot = figure(width=800, height=800, toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, match_aspect=True)
-#plot = figure(title="Networkx Integration Demonstration", x_range=(-1.1,1.1), y_range=(-1.1,1.1),
-#              tools="", toolbar_location=None)
 
-CACHE.plot.source.data.update(dict(
-    x=CACHE.plot.source.data["home_lat"],
-    y=CACHE.plot.source.data["home_long"],
-))
+#CACHE.plot.source.data.update(dict(
+#    x=CACHE.plot.source.data["home_lat"],
+#    y=CACHE.plot.source.data["home_long"],
+#))
 
 plot.circle(
     'x','y',source=CACHE.plot.source

@@ -33,6 +33,5 @@ __AVAILABLES = (
 def get_random():
     graph_dict = random.choice(__AVAILABLES)
     graph = GraphHelper.from_dict_to_graph(graph_dict)
-    
     return graph_dict
 
