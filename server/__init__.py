@@ -1,2 +1,1 @@
-GRAPH = {}
-SOURCE = None
+from . import *
