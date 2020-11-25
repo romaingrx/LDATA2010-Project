@@ -30,14 +30,16 @@ class GraphHelper(object):
         nodes_attr = pd.concat([h1, h2])
         nodes_attr = nodes_attr[~nodes_attr.index.duplicated()]
         nodes_attr.sort_index(inplace=True)
+        nodes_attr["name"] = G.nodes
         nodes_attr_dict = nodes_attr.to_dict(orient="index")
- 
         nx.set_node_attributes(G, nodes_attr_dict)
+
+        G = nx.relabel_nodes(G, dict(zip(G.nodes, np.arange(len(G.nodes)))), copy=False)
 
         nodes_attr["person"] = nodes_attr.index
         CACHE.graph = G
-        CACHE.plot.source.data.update(
-            nodes_attr.to_dict(orient="list")
-        )
+        CACHE.plot.source.data.update({
+            **nodes_attr.to_dict(orient="list"),
+        })
  
         return G

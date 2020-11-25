@@ -1,13 +1,9 @@
-import tempfile
-
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine
 from bokeh.models.widgets import FileInput, Panel
 from bokeh.plotting import curdoc, figure, show 
 from bokeh.layouts import row, column, layout
 from bokeh.palettes import Spectral8
 import networkx as nx
-import holoviews as hv
-from holoviews import opts
 
 
 from . import settings, layouts
@@ -28,20 +24,27 @@ DOC.title = "Graph visualizer server"
 # --------- Display points -------- #
 
 TOOLTIPS = [
-    ("person", "@person")
+    ("person", "@name")
 ]
-print(CACHE.plot.source.data)
 
-plot = figure(width=800, height=800, toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, match_aspect=True)
+plot = figure(width=800, height=800, toolbar_location="above", tooltips=None, tools=settings.PLOT_TOOLS) 
+CACHE.plot.p = plot
 
-#CACHE.plot.source.data.update(dict(
-#    x=CACHE.plot.source.data["home_lat"],
-#    y=CACHE.plot.source.data["home_long"],
-#))
-
-plot.circle(
-    'x','y',source=CACHE.plot.source
+edges_glyph = MultiLine(
+    xs="xs",
+    ys="ys",
 )
+plot.add_glyph(CACHE.plot.edges.source, edges_glyph)
+
+nodes_glyph = Circle(
+    x="x",
+    y="y",
+    size=20
+)
+
+plot.add_glyph(CACHE.plot.source, nodes_glyph)
+
+
 
 
 

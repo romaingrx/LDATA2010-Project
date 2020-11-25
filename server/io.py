@@ -29,7 +29,11 @@ class FileInputHandler(object):
     def from_raw64_to_dict(cls, raw_data)->dict:
         data = base64ToString(raw_data).replace(' ','')
 
-        df = pd.read_csv(StringIO(data))
+        df = pd.read_csv(StringIO(data), 
+        dtype={
+            'person1': str,
+            'person2': str,
+            })
         assert len(df.columns) == len(COLUMNS_NAME), f"Not the same number of columns in this csv file; expected {COLUMNS_NAME} but got {df.columns}" 
 
         df.columns = COLUMNS_NAME
