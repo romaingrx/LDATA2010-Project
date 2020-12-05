@@ -5,6 +5,8 @@ import random
 from bokeh.models import ColumnDataSource
 
 from .utils import AttrDict
+import binascii
+
 
 COLUMNS_NAME = (
     "timestep",
@@ -23,12 +25,13 @@ COLUMNS_NAME = (
 DEFAULT = AttrDict(
     plot=AttrDict(
         edges=AttrDict(
-            thickness=20,
-            color="#FFFFFF"
+           thickness=.1,
+            color="#060606"
         ),
         nodes=AttrDict(
-            size=20,
-            color="#FFFFFF"
+            basedon="None",
+            size=15,
+            color="#FF00FF"
         ),
     ),
 )
@@ -57,10 +60,10 @@ class RetrieveLastConfig(object):
     @classmethod
     def main(cls, apply_on_cache=False):
         return dict(
-            layout=cls.retrieve_layout_algo(apply_on_cache),
-            graph=cls.retrieve_graph(apply_on_cache),
             edges=cls.retrieve_edges(apply_on_cache),
             nodes=cls.retrieve_nodes(apply_on_cache),
+            layout=cls.retrieve_layout_algo(apply_on_cache),
+            graph=cls.retrieve_graph(apply_on_cache),
         )
     
     @classmethod
@@ -68,9 +71,9 @@ class RetrieveLastConfig(object):
         from . import io
         from . import templates
         raw_data = io.JSONHandler.get(('source', 'raw_data'))
-        LOGGER.info(f"raw data : {raw_data}")
-        graph = io.FileInputHandler.from_raw_to_graph(raw_data=raw_data) if raw_data != None else templates.get_random()
-        LOGGER.info(f"graph : {graph}")
+        #LOGGER.info(f"raw data : {raw_data}")
+        graph = io.FileInputHandler.from_raw_to_graph(raw_data) if raw_data != None else templates.get_random()
+        #LOGGER.info(f"graph : {graph}")
 
         if apply_on_cahe:
             CACHE.graph = graph
@@ -94,7 +97,7 @@ class RetrieveLastConfig(object):
     def retrieve_edges(cls, apply_on_cache=False):
         from . import io
         edges_values = AttrDict()
-        for key in ("thickness", "color"):
+        for key in DEFAULT.plot.edges.keys():
             value = io.JSONHandler.get(("plot", "edges", key)) or DEFAULT.plot.edges[key]
             edges_values[key] = value
             if apply_on_cache:
@@ -106,7 +109,7 @@ class RetrieveLastConfig(object):
     def retrieve_nodes(cls, apply_on_cache=False):
         from . import io
         nodes_values = AttrDict()
-        for key in ("size", "color"):
+        for key in DEFAULT.plot.nodes.keys():
             value = io.JSONHandler.get(("plot", "nodes", key)) or DEFAULT.plot.nodes[key]
             nodes_values[key] = value
             if apply_on_cache:
@@ -114,19 +117,14 @@ class RetrieveLastConfig(object):
 
         return nodes_values
 
-#def create_void_cache(swimming_keys):
-#    CACHE = AttrDict()
-#    def recursive_creator(cache, keys):
-#        if isinstance(keys, tuple):
-#            for key in keys:
-#                recursive_creator(cache, key)
-#        else:
-#            cache[keys] = AttrDict()
 
+def reset_plot_dict():
+    CACHE.plot.source.data = {}
+    CACHE.plot.edges.source.data = {}
 
 def create_globals():
     global INITIALIZED, LOGGER, CACHE
-    if not globals().get("INITIALIZED", False):
+    if "INITIALIZED" not in globals():
         INITIALIZED = True
         CACHE = AttrDict()
         CACHE.graph_attr = AttrDict()
@@ -136,6 +134,7 @@ def create_globals():
         CACHE.plot.nodes = AttrDict()
         CACHE.plot.source = ColumnDataSource({})
         CACHE.plot.edges.source = ColumnDataSource({})
+        reset_plot_dict()
         LOGGER = None
 
 def init(level=logging.DEBUG):
@@ -143,4 +142,6 @@ def init(level=logging.DEBUG):
     LOGGER = get_logger(LOGFILE, level)
     RetrieveLastConfig.main(apply_on_cache=True)
 
-create_globals()
+if "INITIALIZED" not in globals():
+    create_globals()
+    init()

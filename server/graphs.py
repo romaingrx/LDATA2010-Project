@@ -14,6 +14,12 @@ class GraphHelper(object):
             raw_dict: a dict with the columns values (list)
             :return: a nx.Graph with all information stock either in the nodes or the edges
         """
+        from .layouts import apply_on_graph 
+        from .visualizer import Setter
+        from .settings import reset_plot_dict
+
+        reset_plot_dict()
+
         df = pd.DataFrame(raw_dict)
         CACHE.df = df
 
@@ -35,11 +41,19 @@ class GraphHelper(object):
         nx.set_node_attributes(G, nodes_attr_dict)
 
         G = nx.relabel_nodes(G, dict(zip(G.nodes, np.arange(len(G.nodes)))), copy=False)
+        degree = np.array(list(dict(G.degree(sorted(G.nodes))).values())) # Get degree by order
 
         nodes_attr["person"] = nodes_attr.index
         CACHE.graph = G
         CACHE.plot.source.data.update({
             **nodes_attr.to_dict(orient="list"),
+            "degree":degree
         })
- 
+
+        # reset all previous computed layouts
+        CACHE.plot.layouts = AttrDict()
+
+        apply_on_graph()
+        Setter.main()
+
         return G
