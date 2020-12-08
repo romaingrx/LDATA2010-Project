@@ -42,7 +42,8 @@ class VisualizerHandler(object):
     @classmethod
     def timestep_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Timestep \"{new}\" chosen")
-        #TODO
+        CACHE.T = int(new)
+        #layouts.apply_on_graph()
 
 
 class Setter:

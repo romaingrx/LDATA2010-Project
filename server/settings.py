@@ -5,7 +5,6 @@ import random
 from bokeh.models import ColumnDataSource
 
 from .utils import AttrDict
-import binascii
 
 
 COLUMNS_NAME = (
@@ -25,7 +24,7 @@ COLUMNS_NAME = (
 DEFAULT = AttrDict(
     plot=AttrDict(
         edges=AttrDict(
-           thickness=.1,
+           thickness=.2,
             color="#060606"
         ),
         nodes=AttrDict(

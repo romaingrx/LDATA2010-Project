@@ -31,6 +31,9 @@ TOOLTIPS = [
 ]
 
 plot = figure(width=1200, height=900, toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl") 
+plot.xgrid.visible = False
+plot.ygrid.visible = False
+plot.axis.visible = False
 plot.title.text = "Graph visualizer"
 CACHE.plot.p = plot
 
@@ -108,21 +111,6 @@ control_pannel = column(file_input,
                         row(node_size_slider, thickness_slider),
                         )
 # ---------- #  
-
-
-class Background(Resources):
-    @property
-    def css_raw(self):
-        return super().css_raw + [
-            """.bk-root {
-                    background-color: #020202;
-                    border-color: #000000;
-                    }
-            """
-        ]
-
-#print(curstate().file)
-#curstate().file = dict(ressources=Background(mode='cdn'))
 
 layout = row(plot, control_pannel)
 curdoc().add_root(layout)

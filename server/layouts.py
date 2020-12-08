@@ -27,17 +27,17 @@ class ForceLayout(Layout):
                           outboundAttractionDistribution=True,  # Dissuade hubs
                           linLogMode=False,  # NOT IMPLEMENTED
                           adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
-                          edgeWeightInfluence=1.0,
+                          edgeWeightInfluence=3.0,
 
                           # Performance
                           jitterTolerance=1.0,  # Tolerance
                           barnesHutOptimize=True,
-                          barnesHutTheta=1.2,
+                          barnesHutTheta=1.4,
                           multiThreaded=False,  # NOT IMPLEMENTED
 
                           # Tuning
-                          scalingRatio=2.0,
-                          strongGravityMode=False,
+                          scalingRatio=3.0,
+                          strongGravityMode=True,
                           gravity=1.0,
 
                           # Log
@@ -102,20 +102,26 @@ def apply_on_graph():
             )
     
     def apply_on_nodes(x, y):
-        CACHE.plot.source.data.update(
-            dict(
-                x = x,
-                y = y,
-            )
-        )
+        CACHE.plot.source.data["x"] = x
+        CACHE.plot.source.data["y"] = y
+        #CACHE.plot.source.data.update(
+        #    dict(
+        #        x = x,
+        #        y = y,
+        #    )
+        #)
     
     def apply_on_edges(xs, ys):
-        CACHE.plot.edges.source.data.update(
-            dict(
-                xs=xs,
-                ys=ys
-            )
-        )
+        CACHE.plot.edges.source.data["xs"] = xs
+        CACHE.plot.edges.source.data["ys"] = ys
+        print(type(CACHE.plot.edges.source.data["xs"]))
+        print(type(CACHE.plot.edges.source.data))
+        #CACHE.plot.edges.source.data.update(
+        #    dict(
+        #        xs=xs,
+        #        ys=ys
+        #    )
+        #)
         #CACHE.plot.edges.source.data['xs'] = xs
         #CACHE.plot.edges.source.data['ys'] = ys
     
