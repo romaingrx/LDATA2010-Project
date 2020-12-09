@@ -1,5 +1,6 @@
 import base64
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 
 class AttrDict(dict):
@@ -23,7 +24,19 @@ def dic_from_string(path_string, item, sep):
     dic = recursive_boy(elems, item)
     return dic
 
+
 def list_of_dict_to_dict_of_list(lst, idx=None):
+    df = pd.DataFrame(lst)
+    if idx is not None:
+        keys = df.columns.values
+        df["idx"] = idx
+        df = df.groupby("idx")[keys].agg(list)
+    return df.to_dict(orient="list")
+
+
+
+
+def DEPRECATED_list_of_dict_to_dict_of_list(lst, idx=None):
     if len(lst) < 1:
         return {}
 
@@ -41,9 +54,16 @@ def list_of_dict_to_dict_of_list(lst, idx=None):
         d = dict(d)
         lst = list(d.values())
 
+
+
     keys = list(lst[0].keys())
-    data_collector = np.array([list(d.values()) for d in lst]).T
-    dol = {k:d for k,d in zip(keys, data_collector)}
+    data_collector = [list(d.values()) for d in lst]
+    T_collector = [] * len(keys)
+    for node in data_collector:
+        for idx, v in enumerate(node):
+            T_collector[idx].append(v)
+
+    dol = {k:d for k,d in zip(keys, T_collector)}
     return dol
 
 def group_list(lst, idx):

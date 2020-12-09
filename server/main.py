@@ -28,6 +28,7 @@ TOOLTIPS = [
     ("person", "@name"),
     ("home latitude", "@home_lat"),
     ("home longitude", "@home_long"),
+    ("degree", "@degree")
 ]
 
 plot = figure(width=1200, height=900, toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl") 
@@ -82,7 +83,7 @@ file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/re
 file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
 
-timestep_slider = Slider(title="Timestep ", start=0, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1)
+timestep_slider = Slider(title="Timestep ", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1)
 timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
 CACHE.widgets.timestep_slider = timestep_slider
 

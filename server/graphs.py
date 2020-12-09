@@ -41,7 +41,6 @@ class GraphHelper(object):
  
         nodes_attr = pd.concat([h1, h2])
         nodes_attr = nodes_attr[~nodes_attr.index.duplicated()]
-        #nodes_attr.sort_index(inplace=True)
         nodes_attr["name"] = G.nodes
         nodes_attr_dict = nodes_attr.to_dict(orient="index")
         nx.set_node_attributes(G, nodes_attr_dict)
@@ -118,10 +117,22 @@ class GraphHelper(object):
         Setter.all()
 
         return G
+
+
     @classmethod
     def subgraph_from_timestep(cls, G, timestep):
-        nodes_to_keep = NodesHelper.get_unique_nodes(G, timestep)
-        return G.subgraph(nodes_to_keep)
+        g = G.copy()
+        nodes_count = dict(G.degree())
+        for u, v, key, data in G.edges(data=True, keys=True):
+            if data['timestep'] > timestep:
+                nodes_count[u] -= 1
+                nodes_count[v] -= 1
+                g.remove_edge(u, v, key=key)
+        nodes, counts = list(zip(*nodes_count.items()))
+        nodes = np.array(nodes); counts = np.array(counts)
+        nodes_to_keep = nodes[counts>0]
+        return g.subgraph(nodes_to_keep)
+
 
 class EdgesHelper:
     @classmethod
@@ -141,13 +152,17 @@ class EdgesHelper:
 
     @classmethod
     def get_all_attributes(cls, G, sort=True):
-        [u, v, data] = np.array(list(zip(*G.edges(data=True))))
+        [u, v, data] = list(zip(*G.edges(data=True)))
 
         edges, idx, inv = np.unique(np.c_[u, v].astype(int), axis=0, return_inverse=True, return_index=True)
 
-        if sort:
-            _, indexes = cls.sort(edges.T, return_indexes=True)
-            inv = indexes[inv]
+    # DEPRECATED
+        #if sort:
+        #    _, indexes = cls.sort(edges.T, return_indexes=True)
+        #    inv = indexes[inv]
+
+        #for idx, v in enumerate(data):
+        #    data[idx] = dict(v)
 
         dict_of_list = list_of_dict_to_dict_of_list(data, idx=inv)
 
@@ -221,17 +236,12 @@ class NodesHelper:
         return degrees
 
     @classmethod
-    def DEPRECATED_get_degree(cls, G, timestep, directed=True):
-        _, degrees = cls.get_unique_nodes(G, timestep, with_degree=True)
-        return degrees
-
-    @classmethod
     def get_all_attributes(cls, G):
         nodes_data = G.nodes(data=True)
         nodes, data = list(zip(*nodes_data))
 
         dict_of_list = list_of_dict_to_dict_of_list(data)
-        degrees = cls.get_degree(G, int(2e32-1))
+        degrees = cls.get_degree(G)
         dict_of_list["degree"] = degrees
 
         return dict_of_list
