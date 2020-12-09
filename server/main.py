@@ -50,7 +50,8 @@ nodes_glyph = Circle(
     x="x",
     y="y",
     fill_color="colors",
-    size="size",
+    radius="size",
+    #size="size",
     fill_alpha=.5
 )
 

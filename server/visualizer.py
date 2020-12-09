@@ -116,10 +116,10 @@ class Setter:
         G = CACHE.ultra[CACHE.plot.timestep].G
         basedon = CACHE.plot.nodes.basedon
         if basedon == "None":
-            new_value = [CACHE.plot.nodes.size] * len(G.nodes)
+            new_value = [CACHE.plot.nodes.size * .001] * len(G.nodes)
         elif basedon == "Degree":
             degrees = NodesHelper.get_degree(G)
-            ma = 1.25*CACHE.plot.nodes.size; mi = .25*CACHE.plot.nodes.size
+            ma = 2*CACHE.plot.nodes.size*.0001; mi = .5*CACHE.plot.nodes.size*.0001
             deg_clip = mi + (ma-mi) * (degrees - degrees.min()) / (degrees.max())
             new_value = deg_clip * CACHE.plot.nodes.size
         else:
