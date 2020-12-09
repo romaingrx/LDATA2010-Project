@@ -1,6 +1,11 @@
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+
 from .io import JSONHandler
 from . import settings, layouts
 from .settings import LOGGER, CACHE
+from .graphs import EdgesHelper, NodesHelper, GraphHelper
+from .utils import AttrDict, cur_graph
 
 class VisualizerHandler(object):
 
@@ -14,72 +19,146 @@ class VisualizerHandler(object):
     def thickness_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Thickness \"{new}\" chosen")
         CACHE.plot.edges.thickness = new
-        Setter.edge_thickness()
+        Setter.edge_thickness(update=True)
     
     @classmethod
     @JSONHandler.update(path="layout")
     def layout_algo_callback(cls, event):
         settings.LOGGER.info(f"Layout algo \"{event.item}\" chosen")
-        
 
         CACHE.layout = layouts.get(event.item)
-        layouts.apply_on_graph()
-    
+        Setter.graph(update=True) 
+
     @classmethod
     @JSONHandler.update(path="plot.nodes.size")
     def node_size_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Node size {new} chosen")
         CACHE.plot.nodes.size = int(new)
-        Setter.node_sizes() 
+        Setter.node_sizes(update=True)
 
     @classmethod
     @JSONHandler.update(path="plot.nodes.basedon")
     def node_size_based_callback(cls, event):
         settings.LOGGER.info(f"Node size based on \"{event.item}\"")
         CACHE.plot.nodes.basedon = event.item 
-        Setter.node_sizes()
+        Setter.node_sizes(update=True)
 
     @classmethod
     def timestep_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Timestep \"{new}\" chosen")
-        CACHE.T = int(new)
-        #layouts.apply_on_graph()
+        timestep = int(new)
+        CACHE.plot.timestep = timestep
+        Setter.all(update=True)
 
 
 class Setter:
-
     NODE_BASED_ON = ["None", "Degree"]
 
     @classmethod
-    def main(cls):
-        cls.node_sizes()
-        cls.node_colors()
-        cls.edge_thickness()
-        cls.edge_colors()
+    def all(cls, update=True):
+        if CACHE.plot.timestep not in CACHE.ultra:
+            CACHE.ultra[CACHE.plot.timestep] = AttrDict(G=GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep))
+        ga_dict = cls.graph_attribute(update=False)
+        g_dict = cls.graph(update=False)
+        e_dict = cls.edges(update=False)
+        n_dict = cls.nodes(update=False)
+        if update:
+            CACHE.plot.edges.source.data.update(
+                dict(
+                    **e_dict,
+                    **ga_dict.edges,
+                    xs=g_dict["xs"],
+                    ys=g_dict["ys"],
+                )
+            )
+            CACHE.plot.source.data.update(
+                dict(
+                    **n_dict,
+                    **ga_dict.nodes,
+                    x=g_dict["x"],
+                    y=g_dict["y"],
+                )
+            )
 
     @classmethod
-    def node_sizes(cls):
+    def graph(cls, update=True):
+        g_dict = layouts.apply_on_graph(CACHE.ultra[CACHE.plot.timestep].G)
+        if update:
+            CACHE.plot.edges.source.data.update(
+                dict(
+                    xs=g_dict["xs"],
+                    ys=g_dict["ys"],
+                )
+            )
+            CACHE.plot.source.data.update(
+                dict(
+                    x=g_dict["x"],
+                    y=g_dict["y"],
+                )
+            )
+        return g_dict
+
+    @classmethod
+    def nodes(cls, update):
+        sizes = cls.node_sizes(update)
+        colors = cls.node_colors(update)
+        return AttrDict(size=sizes, colors=colors)
+
+    @classmethod
+    def edges(cls, update):
+        thickness = cls.edge_thickness(update)
+        colors = cls.edge_colors(update)
+        return AttrDict(thickness=thickness, colors=colors)
+
+
+    @classmethod
+    def node_sizes(cls, update):
+        G = CACHE.ultra[CACHE.plot.timestep].G
         basedon = CACHE.plot.nodes.basedon
         if basedon == "None":
-            new_value = [CACHE.plot.nodes.size] * len(CACHE.graph.nodes())
+            new_value = [CACHE.plot.nodes.size] * len(G.nodes)
         elif basedon == "Degree":
-            ma = 2; mi = .25
-            deg_clip = CACHE.plot.source.data["degree"]
-            deg_clip = mi + (deg_clip - deg_clip.min()) / (deg_clip.max()/(ma-mi))
+            degrees = NodesHelper.get_degree(G)
+            ma = 1.25*CACHE.plot.nodes.size; mi = .25*CACHE.plot.nodes.size
+            deg_clip = mi + (ma-mi) * (degrees - degrees.min()) / (degrees.max())
             new_value = deg_clip * CACHE.plot.nodes.size
         else:
-            pass
-        CACHE.plot.source.data["size"] = new_value
+            return
+        if update:
+            CACHE.plot.source.data["size"] = new_value
+        return new_value
     
     @classmethod
-    def node_colors(cls):
-        CACHE.plot.source.data["colors"] = [CACHE.plot.nodes.color] * len(CACHE.graph.nodes())
+    def node_colors(cls, update):
+        G = CACHE.ultra[CACHE.plot.timestep].G
+        colors = [CACHE.plot.nodes.color] * len(G.nodes)
+        if update:
+            CACHE.plot.source.data["colors"] = colors
+        return colors
     
     @classmethod
-    def edge_thickness(cls):
-        thickness = CACHE.plot.edges.thickness
-        CACHE.plot.edges.source.data["thickness"] = [thickness] * len(CACHE.graph.edges())
+    def edge_thickness(cls, update):
+        G = cur_graph()
+        slider_thickness = CACHE.plot.edges.thickness
+        thickness = [slider_thickness] * EdgesHelper.length(G)
+        if update:
+            CACHE.plot.edges.source.data["thickness"] = thickness
+        return thickness
     
     @classmethod
-    def edge_colors(cls):
-        CACHE.plot.edges.source.data["colors"] = [CACHE.plot.edges.color] * len(CACHE.graph.edges())
+    def edge_colors(cls, update):
+        G = cur_graph()
+        colors = [CACHE.plot.edges.color] * EdgesHelper.length(G)
+        if update:
+            CACHE.plot.edges.source.data["colors"] = colors
+        return colors
+
+    @classmethod
+    def graph_attribute(cls, update):
+        #G = GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep)
+        G = CACHE.ultra[CACHE.plot.timestep].G
+        nodes_attr = NodesHelper.get_all_attributes(G)
+        edges_attr = EdgesHelper.get_all_attributes(G)
+        return AttrDict(nodes=nodes_attr, edges=edges_attr)
+
+

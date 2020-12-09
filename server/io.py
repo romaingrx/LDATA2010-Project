@@ -86,7 +86,6 @@ class FileInputHandler(object):
     @classmethod 
     @JSONHandler.update(path="source.raw_data")
     def callback(cls, attr, old, new) -> dict:
-        CACHE.plot.source.data = {}
         CACHE.graph = cls.from_raw_to_graph(new, based64=True)
     
     @classmethod
@@ -102,8 +101,6 @@ class FileInputHandler(object):
 
         df.columns = COLUMNS_NAME
         graph = df.to_dict(orient='list')
-
-        CACHE.df = df
 
         return graph
     

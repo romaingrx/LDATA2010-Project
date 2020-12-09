@@ -1,8 +1,8 @@
 import os
 import logging
-import random
 
 from bokeh.models import ColumnDataSource
+import pandas as pd
 
 from .utils import AttrDict
 
@@ -116,10 +116,12 @@ class RetrieveLastConfig(object):
 
         return nodes_values
 
-
 def reset_plot_dict():
     CACHE.plot.source.data = {}
     CACHE.plot.edges.source.data = {}
+    CACHE.plot.layouts = AttrDict()
+    CACHE.ultra = AttrDict()
+
 
 def create_globals():
     global INITIALIZED, LOGGER, CACHE
@@ -128,13 +130,13 @@ def create_globals():
         CACHE = AttrDict()
         CACHE.graph_attr = AttrDict()
         CACHE.plot = AttrDict()
+        CACHE.ultra = AttrDict()
         CACHE.plot.control = AttrDict()
         CACHE.plot.edges = AttrDict()
         CACHE.plot.nodes = AttrDict()
         CACHE.plot.source = ColumnDataSource({})
         CACHE.plot.edges.source = ColumnDataSource({})
         reset_plot_dict()
-        LOGGER = None
 
 def init(level=logging.DEBUG):
     global LOGGER, CACHE

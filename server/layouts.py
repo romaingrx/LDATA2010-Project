@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import numpy_indexed as npi
 import pandas as pd
 import networkx as nx
 from bokeh.models import Range1d
@@ -8,6 +9,7 @@ from threading import Thread
 from multiprocessing import Process
 
 from .settings import CACHE, LOGGER
+from .graphs import EdgesHelper, NodesHelper, GraphHelper
 from .utils import AttrDict
 
 from fa2 import ForceAtlas2
@@ -53,34 +55,52 @@ class ForceLayout(Layout):
 # ----------------------------------------------------------------------------------------------------
 # ----------------------------------------------------------------------------------------------------
 
-def update_edges(x, y):
+def update_edges(G, nodes, x, y):
     # TODO : update edges coords  
 
     #x = CACHE.plot.source.data["x"]
     #y = CACHE.plot.source.data["y"]
 
-    [u, v] = np.array(CACHE.graph.edges).T
-    
-    E = len(CACHE.graph.edges)
-    xs = np.zeros((E, 2)) 
-    ys = np.zeros((E, 2)) 
+    #[u, v, count] = EdgesHelper.count_attribute(CACHE.graph, "timestep", leq=CACHE.plot.timestep, sort=True)
+    [u, v, c] = np.array(G.edges).T
+    [u, v] = np.unique(np.c_[u, v], axis=0).T
 
-    xs[:, 0] = x[u]
-    xs[:, 1] = x[v]
+    u_idx = npi.indices(nodes, u)
+    v_idx = npi.indices(nodes, v)
 
-    ys[:, 0] = y[u]
-    ys[:, 1] = y[v]
+    xs = np.c_[x[u_idx], x[v_idx]]
+    ys = np.c_[y[u_idx], y[v_idx]]
 
-    
     return xs, ys
 
 
-def apply_on_graph():
+def apply_on_nodes(x, y):
+    CACHE.plot.source.data["x"] = x
+    CACHE.plot.source.data["y"] = y
+
+def apply_on_edges(xs, ys):
+    CACHE.plot.edges.source.data["xs"] = xs #np.array(xs, dtype=np.float)
+    CACHE.plot.edges.source.data["ys"] = ys # np.array(ys, dtype=np.float)
+    #CACHE.plot.edges.source.data.update(
+    #    dict(
+    #        xs=xs,
+    #        ys=ys
+    #    )
+    #)
+        #CACHE.plot.edges.source.data['xs'] = xs
+        #CACHE.plot.edges.source.data['ys'] = ys
+
+def resize_x_y_fig(x, y):
+    CACHE.plot.p.x_range = Range1d(x.min(), x.max())
+    CACHE.plot.p.y_range = Range1d(y.min(), y.max())
+
+def apply_on_graph(G, update=False):
     # TODO : a thread to apply a continuous update?  (force layout); if so, share an updater thread in the cache
-    G = CACHE.graph
+    #G = GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep)
 
     # Try getting it from the cache
-    if CACHE.layout.__name__ in CACHE.plot.layouts:
+    #if CACHE.layout.__name__ in CACHE.plot.layouts:
+    if False:
         computed_layout = CACHE.plot.layouts[CACHE.layout.__name__]
         x, y = computed_layout.x, computed_layout.y
         xs, ys = computed_layout.xs, computed_layout.ys
@@ -88,9 +108,11 @@ def apply_on_graph():
         pos = CACHE.layout(G)
         # TODO : Speedup this shit (no sorting?)
         #sorted_pos = sorted(pos.items(), key=lambda x:x[0])
+        nodes, pos = list(zip(*pos.items()))
+        pos = np.array(pos); nodes = np.array(nodes)
 
-        [x, y] = np.array(list(pos.values())).T # shape (2, V)
-        xs, ys = update_edges(x, y)
+        [x, y] = pos.T # shape (2, V)
+        xs, ys = update_edges(G, nodes, x, y)
 
         # Save the computed layout in the cache in order to compute only once
         xs, ys = list(xs), list(ys)
@@ -100,43 +122,19 @@ def apply_on_graph():
             xs=xs,
             ys=ys
             )
-    
-    def apply_on_nodes(x, y):
-        CACHE.plot.source.data["x"] = x
-        CACHE.plot.source.data["y"] = y
-        #CACHE.plot.source.data.update(
-        #    dict(
-        #        x = x,
-        #        y = y,
-        #    )
-        #)
-    
-    def apply_on_edges(xs, ys):
-        CACHE.plot.edges.source.data["xs"] = xs
-        CACHE.plot.edges.source.data["ys"] = ys
-        print(type(CACHE.plot.edges.source.data["xs"]))
-        print(type(CACHE.plot.edges.source.data))
-        #CACHE.plot.edges.source.data.update(
-        #    dict(
-        #        xs=xs,
-        #        ys=ys
-        #    )
-        #)
-        #CACHE.plot.edges.source.data['xs'] = xs
-        #CACHE.plot.edges.source.data['ys'] = ys
-    
-    def resize_x_y_fig(x, y):
-        CACHE.plot.p.x_range = Range1d(x.min(), x.max())
-        CACHE.plot.p.y_range = Range1d(y.min(), y.max())
-    
-    te = Thread(target=apply_on_edges, args=(xs, ys))
-    te.start()
-    tn = Thread(target=apply_on_nodes, args=(x, y))
-    tn.start()
-    if "p" in CACHE.plot:
-        resize_x_y_fig(x, y)
 
-    te.join(); tn.join() 
+    if update:
+         te = Thread(target=apply_on_edges, args=(xs, ys))
+         te.start()
+         tn = Thread(target=apply_on_nodes, args=(x, y))
+         tn.start()
+         if "p" in CACHE.plot:
+             resize_x_y_fig(x, y)
+
+         te.join(); tn.join()
+
+
+    return AttrDict(nodes=nodes, x=x, y=y, xs=xs, ys=ys)
 
 
 AVAILABLE = dict(

@@ -1,6 +1,6 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse
 from bokeh.models.widgets import FileInput, Panel
-from bokeh.plotting import curdoc, figure, show 
+from bokeh.plotting import curdoc, figure, show, from_networkx
 from bokeh.layouts import row, column, layout
 from bokeh.palettes import Spectral8
 from bokeh.resources import Resources
@@ -50,7 +50,7 @@ nodes_glyph = Circle(
     x="x",
     y="y",
     fill_color="colors",
-    size="size", 
+    size="size",
     fill_alpha=.5
 )
 
@@ -81,8 +81,8 @@ file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/re
 file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
 
-timestep_slider = Slider(title="Timestep ", start=0, end=CACHE.graph_attr.timesteps, value=CACHE.graph_attr.timesteps, step=1)
-timestep_slider.on_change('value', VisualizerHandler.timestep_callback)
+timestep_slider = Slider(title="Timestep ", start=0, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1)
+timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
 CACHE.widgets.timestep_slider = timestep_slider
 
 color_picker = ColorPicker(title="Color picker")
