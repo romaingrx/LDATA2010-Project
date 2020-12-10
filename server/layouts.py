@@ -90,7 +90,12 @@ def apply_on_edges(xs, ys):
         #CACHE.plot.edges.source.data['xs'] = xs
         #CACHE.plot.edges.source.data['ys'] = ys
 
-def resize_x_y_fig(x, y):
+def resize_x_y_fig(x=None, y=None):
+    if "p" not in CACHE.plot:
+        return
+    if x is None or y is None:
+        x = CACHE.plot.source.data["x"]
+        y = CACHE.plot.source.data["y"]
     CACHE.plot.p.x_range = Range1d(x.min(), x.max())
     CACHE.plot.p.y_range = Range1d(y.min(), y.max())
 

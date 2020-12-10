@@ -1,6 +1,7 @@
 import base64
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from collections import defaultdict
 
 class AttrDict(dict):
@@ -72,6 +73,12 @@ def group_list(lst, idx):
 def cur_graph():
     from .settings import CACHE
     return CACHE.ultra[CACHE.plot.timestep].G
+
+class SnsPalette:
+    def __init__(self, color):
+        self._color = color
+    def __call__(self, n):
+        return np.array(sns.color_palette(self._color, n_colors=n).as_hex())
 
 if __name__ == "__main__":
     d = dic_from_string("A", 42, '.')

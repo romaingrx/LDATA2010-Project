@@ -21,6 +21,24 @@ COLUMNS_NAME = (
     "home2_long",
 )
 
+COLORS = AttrDict(
+    black="#191a1a",
+    white="#000000",
+    purple="#c08bc7",
+)
+
+STATIC = AttrDict(
+    background=AttrDict(
+        color=COLORS.black,
+    ),
+    widget=AttrDict(
+        slider=AttrDict(
+            bar_color=COLORS.purple,
+            #text_color=COLORS.white
+        )
+    )
+)
+
 DEFAULT = AttrDict(
     plot=AttrDict(
         edges=AttrDict(
@@ -30,7 +48,8 @@ DEFAULT = AttrDict(
         nodes=AttrDict(
             basedon="None",
             size=15,
-            color="#FF00FF"
+            color="#FF00FF",
+            color_based_on="random"
         ),
     ),
 )

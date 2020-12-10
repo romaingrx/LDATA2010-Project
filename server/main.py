@@ -1,20 +1,17 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse
-from bokeh.models.widgets import FileInput, Panel
-from bokeh.plotting import curdoc, figure, show, from_networkx
-from bokeh.layouts import row, column, layout
-from bokeh.palettes import Spectral8
-from bokeh.resources import Resources
-from bokeh.io.state import curstate
-import networkx as nx
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div
+from bokeh.models.widgets import FileInput
+from bokeh.plotting import curdoc, figure
+from bokeh.layouts import row, column
+
+#import holoviews as hv
+#hv.extension('bokeh')
 
 
 from . import settings, layouts
 from .io import FileInputHandler
 from .utils import AttrDict
 from .visualizer import VisualizerHandler, Setter
-
-#settings.init()
-from .settings import CACHE
+from .settings import CACHE, STATIC
 
 # GLOBAL VARIABLES
 
@@ -53,7 +50,7 @@ nodes_glyph = Circle(
     fill_color="colors",
     radius="size",
     #size="size",
-    fill_alpha=.5
+    fill_alpha=.75
 )
 
 plot.add_glyph(CACHE.plot.source, nodes_glyph)
@@ -83,36 +80,85 @@ file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/re
 file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
 
-timestep_slider = Slider(title="Timestep ", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1)
+timestep_slider = Slider(title="Timestep", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1, **STATIC.widget.slider)
 timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
 CACHE.widgets.timestep_slider = timestep_slider
 
-color_picker = ColorPicker(title="Color picker")
-color_picker.on_change('color', VisualizerHandler.color_callback)
-CACHE.widgets.color_picker = color_picker
+# ------------------ Layouts widgets ------------------- #
 
-thickness_slider = Slider(title="Edge thickness", start=.1, end=20, value=CACHE.plot.edges.thickness, step=.1)
-thickness_slider.on_change('value', VisualizerHandler.thickness_callback)
-CACHE.widgets.thickness_slider = thickness_slider
-
-node_size_slider = Slider(title="Node size", start=1, end=50, value=CACHE.plot.nodes.size, step=1)
-node_size_slider.on_change('value', VisualizerHandler.node_size_callback)
-CACHE.widgets.node_size_slider = node_size_slider
+layout_title = Div(text="<h1>Layout settings</h1>")
 
 layout_algo_dropdown = Dropdown(label="Layout algorithm", menu=list(layouts.AVAILABLE.keys()))
 layout_algo_dropdown.on_event('menu_item_click', VisualizerHandler.layout_algo_callback)
 CACHE.widgets.layout_algo_dropdown = layout_algo_dropdown
 
+# ------------------ Edges widgets ------------------- #
+
+edges_title = Div(text="<h1>Edges settings</h1>")
+
+thickness_slider = Slider(title="Edge thickness", start=.1, end=20, value=CACHE.plot.edges.thickness, step=.1, **STATIC.widget.slider)
+thickness_slider.on_change('value_throttled', VisualizerHandler.thickness_callback)
+CACHE.widgets.thickness_slider = thickness_slider
+
+# ------------------ Nodes widgets ------------------- #
+
+nodes_title = Div(text="<h1>Nodes settings</h1>")
+
+node_size_slider = Slider(title="Node size", start=1, end=50, value=CACHE.plot.nodes.size, step=1, **STATIC.widget.slider)
+node_size_slider.on_change('value_throttled', VisualizerHandler.node_size_callback)
+CACHE.widgets.node_size_slider = node_size_slider
+
 node_size_dropdown = Dropdown(label="Node size based on", menu=Setter.NODE_BASED_ON)
 node_size_dropdown.on_event('menu_item_click', VisualizerHandler.node_size_based_callback)
 CACHE.widgets.node_size_dropdown = node_size_dropdown
 
-control_pannel = column(file_input, 
-                        timestep_slider,
-                        row(layout_algo_dropdown, node_size_dropdown),
-                        row(node_size_slider, thickness_slider),
-                        )
-# ---------- #  
 
-layout = row(plot, control_pannel)
+node_color_dropdown = Dropdown(label="Node color based on", menu=Setter.NODE_COLORS)
+node_color_dropdown.on_event('menu_item_click', VisualizerHandler.node_color_callback)
+CACHE.widgets.node_color_dropdown = node_color_dropdown
+
+# ------------------ Other widgets ------------------- #
+
+color_picker = ColorPicker(title="Color picker")
+color_picker.on_change('color', VisualizerHandler.color_callback)
+CACHE.widgets.color_picker = color_picker
+
+
+# Layout disposition
+
+#div = Div(text="<hr class=\"solid\">", css_classes=["hr.solid {border-top: 3px solid #bbb;}"])
+
+top_pannel = column(
+    file_input,
+    timestep_slider,
+)
+
+layout_pannel = column(
+    layout_title,
+    layout_algo_dropdown,
+)
+
+edges_pannel = column(
+   edges_title,
+   thickness_slider,
+)
+
+nodes_pannel = column(
+    nodes_title,
+    row(node_size_dropdown, node_size_slider),
+    row(node_color_dropdown)
+)
+
+
+control_pannel = column(
+    top_pannel,
+    layout_pannel,
+    edges_pannel,
+    nodes_pannel
+)
+
+layout = row(control_pannel, plot)
+
+# ---------- #
+
 curdoc().add_root(layout)
