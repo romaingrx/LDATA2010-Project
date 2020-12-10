@@ -9,7 +9,7 @@ from bokeh.layouts import row, column
 
 from . import settings, layouts
 from .io import FileInputHandler
-from .utils import AttrDict
+from .utils import AttrDict, from_dict_to_menu
 from .visualizer import VisualizerHandler, Setter
 from .settings import CACHE, STATIC
 
@@ -88,7 +88,7 @@ CACHE.widgets.timestep_slider = timestep_slider
 
 layout_title = Div(text="<h1>Layout settings</h1>")
 
-layout_algo_dropdown = Dropdown(label="Layout algorithm", menu=list(layouts.AVAILABLE.keys()))
+layout_algo_dropdown = Dropdown(label="Layout algorithm", menu=from_dict_to_menu(layouts.AVAILABLE))
 layout_algo_dropdown.on_event('menu_item_click', VisualizerHandler.layout_algo_callback)
 CACHE.widgets.layout_algo_dropdown = layout_algo_dropdown
 
@@ -96,7 +96,7 @@ CACHE.widgets.layout_algo_dropdown = layout_algo_dropdown
 
 edges_title = Div(text="<h1>Edges settings</h1>")
 
-thickness_slider = Slider(title="Edge thickness", start=.1, end=20, value=CACHE.plot.edges.thickness, step=.1, **STATIC.widget.slider)
+thickness_slider = Slider(title="Edge thickness", start=.05, end=5, value=CACHE.plot.edges.thickness, step=.05, **STATIC.widget.slider)
 thickness_slider.on_change('value_throttled', VisualizerHandler.thickness_callback)
 CACHE.widgets.thickness_slider = thickness_slider
 
@@ -131,6 +131,7 @@ CACHE.widgets.color_picker = color_picker
 top_pannel = column(
     file_input,
     timestep_slider,
+    sizing_mode="scale_width"
 )
 
 layout_pannel = column(

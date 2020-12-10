@@ -80,6 +80,15 @@ class SnsPalette:
     def __call__(self, n):
         return np.array(sns.color_palette(self._color, n_colors=n).as_hex())
 
+def from_dict_to_menu(d):
+    l = []
+    for k,v in d.items():
+        if v is None:
+            l.append(None)
+        else:
+            l.append(k)
+    return l
+
 if __name__ == "__main__":
     d = dic_from_string("A", 42, '.')
     print(d)

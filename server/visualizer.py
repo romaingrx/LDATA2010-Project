@@ -71,7 +71,7 @@ class VisualizerHandler(object):
 class Setter:
     NODE_BASED_ON = ["None", "Degree"]
     NODE_COLORS = ["random", "degree", "cluster"]
-    __ALL_PALETTES = [viridis, SnsPalette("BuPu"), SnsPalette("Blues")]
+    __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues")]
 
     @classmethod
     def all(cls, update=True):

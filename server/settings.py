@@ -2,7 +2,8 @@ import os
 import logging
 
 from bokeh.models import ColumnDataSource
-import pandas as pd
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 
 from .utils import AttrDict
 
@@ -159,6 +160,15 @@ def create_globals():
 
 def init(level=logging.DEBUG):
     global LOGGER, CACHE
+    # DISABLED
+    #cluster = LocalCUDACluster(
+    #    protocol="ucx",
+    #    enable_tcp_over_ucx=True,
+    #    enable_infiniband=False
+    #)
+    #client = Client(cluster)
+    #CACHE.cluster = cluster
+    #CACHE.client = client
     LOGGER = get_logger(LOGFILE, level)
     RetrieveLastConfig.main(apply_on_cache=True)
 

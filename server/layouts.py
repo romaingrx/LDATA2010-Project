@@ -29,7 +29,7 @@ class ForceLayout(Layout):
                           outboundAttractionDistribution=True,  # Dissuade hubs
                           linLogMode=False,  # NOT IMPLEMENTED
                           adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
-                          edgeWeightInfluence=3.0,
+                          edgeWeightInfluence=2.0,
 
                           # Performance
                           jitterTolerance=1.0,  # Tolerance
@@ -38,9 +38,9 @@ class ForceLayout(Layout):
                           multiThreaded=False,  # NOT IMPLEMENTED
 
                           # Tuning
-                          scalingRatio=3.0,
+                          scalingRatio=1.0,
                           strongGravityMode=True,
-                          gravity=1.0,
+                          gravity=.75,
 
                           # Log
                           verbose=True)
@@ -49,6 +49,13 @@ class ForceLayout(Layout):
     def __call__(self, G):
         layout = self.fa2.forceatlas2_networkx_layout(CACHE.graph, pos=None, iterations=100)
         return layout
+
+class Kmeans(Layout):
+    def __init__(self):
+        raise Exception("Not implemented yet")
+    def __call__(self, G):
+        raise Exception("Not implemented yet")
+
 
 
 
@@ -144,8 +151,12 @@ def apply_on_graph(G, update=False):
 
 AVAILABLE = dict(
     # Simple layouts
+    simple_layouts=None,
+
     random=random_layout,
     circular=nx.circular_layout,
+
+    networkx_layouts=None,
 
     # Networkx layouts
     spectral=nx.drawing.layout.spectral_layout,
@@ -153,7 +164,12 @@ AVAILABLE = dict(
     kamada_kawai=nx.layout.kamada_kawai_layout,
 
     # Force layouts
+    force_layouts=None,
     forceatlas2=ForceLayout(),
+
+    # Cluster layouts
+    cluster_layouts=None,
+    #kmeans=Kmeans(),
 )
 
 def get(key:str):
