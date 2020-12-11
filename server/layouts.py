@@ -11,6 +11,8 @@ from multiprocessing import Process
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
 from .utils import AttrDict
+from .algorithms import louvain_partition
+from .layout_algorithms import community_layout
 
 from fa2 import ForceAtlas2
 
@@ -29,7 +31,7 @@ class ForceLayout(Layout):
                           outboundAttractionDistribution=True,  # Dissuade hubs
                           linLogMode=False,  # NOT IMPLEMENTED
                           adjustSizes=False,  # Prevent overlap (NOT IMPLEMENTED)
-                          edgeWeightInfluence=3.0,
+                          edgeWeightInfluence=2.0,
 
                           # Performance
                           jitterTolerance=1.0,  # Tolerance
@@ -38,17 +40,33 @@ class ForceLayout(Layout):
                           multiThreaded=False,  # NOT IMPLEMENTED
 
                           # Tuning
-                          scalingRatio=3.0,
+                          scalingRatio=1.0,
                           strongGravityMode=True,
-                          gravity=1.0,
+                          gravity=.75,
 
                           # Log
                           verbose=True)
     
     
     def __call__(self, G):
-        layout = self.fa2.forceatlas2_networkx_layout(CACHE.graph, pos=None, iterations=100)
+        layout = self.fa2.forceatlas2_networkx_layout(G, pos=None, iterations=100)
         return layout
+
+class LouvainLayout(Layout):
+    def __init__(self):
+        pass
+    def __call__(self, G):
+        node_clusters = louvain_partition(G, as_dict=True)
+        pos = community_layout(G, node_clusters)
+        return pos
+        
+
+class Kmeans(Layout):
+    def __init__(self):
+        raise Exception("Not implemented yet")
+    def __call__(self, G):
+        raise Exception("Not implemented yet")
+
 
 
 
@@ -144,16 +162,27 @@ def apply_on_graph(G, update=False):
 
 AVAILABLE = dict(
     # Simple layouts
+    simple_layouts=None,
+
     random=random_layout,
     circular=nx.circular_layout,
 
+    networkx_layouts=None,
+
     # Networkx layouts
+    spring=nx.spring_layout,
     spectral=nx.drawing.layout.spectral_layout,
     fruchterman_reingold=nx.layout.fruchterman_reingold_layout,
     kamada_kawai=nx.layout.kamada_kawai_layout,
 
     # Force layouts
+    force_layouts=None,
     forceatlas2=ForceLayout(),
+
+    # Cluster layouts
+    cluster_layouts=None,
+    louvain=LouvainLayout(),
+    #kmeans=Kmeans(),
 )
 
 def get(key:str):

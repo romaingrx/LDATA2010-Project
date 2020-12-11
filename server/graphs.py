@@ -78,6 +78,17 @@ class GraphHelper(object):
         nodes_to_keep = nodes[counts>0]
         return g.subgraph(nodes_to_keep)
 
+    @classmethod
+    def multigraph_to_weighted_graph(cls, M):
+        G = nx.Graph()
+        for u,v,data in M.edges(data=True):
+            w = data['weight'] if 'weight' in data else 1.0
+            if G.has_edge(u, v):
+                G[u][v]['weight'] += w
+            else:
+                G.add_edge(u, v, weight=w)
+        return G
+
 
 
 class EdgesHelper:
@@ -189,6 +200,16 @@ class NodesHelper:
         if timestep is None:
             return len(G.nodes)
         return len(GraphHelper.subgraph_from_timestep(G, timestep).nodes)
+
+    @classmethod
+    def get_ordered(cls, G, nodes_attr_dict=None, nodes=None, attr=None):
+        assert not ((nodes_attr_dict is not None) ^ (nodes is not None and attr is not None)), "Need either nodes and attr or a dict with nodes::attr"
+        if nodes_attr_dict is not None:
+            nodes = np.array(list(nodes_attr_dict.keys()))
+            attr = np.array(list(nodes_attr_dict.values()))
+
+        off_nodes = np.array(list(G.nodes))
+        
 
 
 

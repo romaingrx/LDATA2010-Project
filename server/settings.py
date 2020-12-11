@@ -2,7 +2,8 @@ import os
 import logging
 
 from bokeh.models import ColumnDataSource
-import pandas as pd
+from dask.distributed import Client
+from dask_cuda import LocalCUDACluster
 
 from .utils import AttrDict
 
@@ -46,12 +47,14 @@ DEFAULT = AttrDict(
             color="#060606"
         ),
         nodes=AttrDict(
-            basedon="None",
-            size=15,
+            basedon="Same",
+            size=20,
             color="#FF00FF",
             color_based_on="random"
         ),
     ),
+    palette="random",
+    layout="random"
 )
 
 TITLE = "Graph visualizer"
@@ -60,6 +63,7 @@ PLOT_TOOLS = "undo,redo,reset,hover,box_select,box_zoom,pan,wheel_zoom,save"
 
 CACHE_DIR = os.path.join(os.curdir, ".cache_server")
 LOGFILE = os.path.join(CACHE_DIR, "server.log")
+TIMELOGFILE = os.path.join(CACHE_DIR, "timeserver.log")
 LAST_CONFIG_FILE = os.path.join(CACHE_DIR, "config.json")
 
 def get_logger(logfile, level):
@@ -68,7 +72,7 @@ def get_logger(logfile, level):
     handler = logging.FileHandler(logfile)
     handler.setFormatter(FORMATTER)
 
-    logger = logging.getLogger()
+    logger = logging.getLogger(logfile)
     logger.setLevel(level)
     logger.addHandler(handler)
 
@@ -158,8 +162,18 @@ def create_globals():
         reset_plot_dict()
 
 def init(level=logging.DEBUG):
-    global LOGGER, CACHE
+    global LOGGER, TIMELOGGER, CACHE
+    # DISABLED
+    #cluster = LocalCUDACluster(
+    #    protocol="ucx",
+    #    enable_tcp_over_ucx=True,
+    #    enable_infiniband=False
+    #)
+    #client = Client(cluster)
+    #CACHE.cluster = cluster
+    #CACHE.client = client
     LOGGER = get_logger(LOGFILE, level)
+    TIMELOGGER = get_logger(TIMELOGFILE, level)
     RetrieveLastConfig.main(apply_on_cache=True)
 
 if "INITIALIZED" not in globals():

@@ -2,7 +2,9 @@ import base64
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from time import time_ns, sleep
 from collections import defaultdict
+from contextlib import contextmanager
 
 class AttrDict(dict):
     __getattr__ = dict.__getitem__
@@ -80,6 +82,47 @@ class SnsPalette:
     def __call__(self, n):
         return np.array(sns.color_palette(self._color, n_colors=n).as_hex())
 
-if __name__ == "__main__":
-    d = dic_from_string("A", 42, '.')
-    print(d)
+def from_dict_to_menu(d):
+    if isinstance(d, dict):
+        l = []
+        for k,v in d.items():
+            if v is None:
+                l.append(None)
+            else:
+                l.append(k)
+    else:
+        return d
+    return l
+
+def ordered(official, toorder, attr=None):
+    sidx = np.argsort(toorder)
+    s_toorder = toorder[sidx]
+    s_attr = attr[sidx]
+    index_in_off = np.searchsorted(s_toorder, official)
+    return s_attr[index_in_off]
+
+def assign_color_from_class(class_values, palette):
+    assert callable(palette)
+    uclasses = np.unique(class_values)
+    colors = palette(len(uclasses))
+    #new_colors = ordered(class_values, uclasses, colors)
+    sidx = uclasses.argsort()
+    s_uclasses= uclasses[sidx]
+    s_colors = colors[sidx]
+    new_colors = s_colors[np.searchsorted(s_uclasses, class_values)]
+    return new_colors
+
+@contextmanager
+def dummy_timelog(desc):
+    from .settings import TIMELOGGER
+    tic = time_ns()
+    yield
+    tac = time_ns()
+    time_taken = tac -tic
+    unities = ["ns", "μs", "ms", "s"]
+    for unity in unities:
+        if time_taken / 1e3 < 1.:
+            break
+        time_taken /= 1e3
+    TIMELOGGER.info(f"{desc} :: {time_taken:.2f} {unity}")
+
