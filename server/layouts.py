@@ -11,6 +11,8 @@ from multiprocessing import Process
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
 from .utils import AttrDict
+from .algorithms import louvain_partition
+from .layout_algorithms import community_layout
 
 from fa2 import ForceAtlas2
 
@@ -47,8 +49,17 @@ class ForceLayout(Layout):
     
     
     def __call__(self, G):
-        layout = self.fa2.forceatlas2_networkx_layout(CACHE.graph, pos=None, iterations=100)
+        layout = self.fa2.forceatlas2_networkx_layout(G, pos=None, iterations=100)
         return layout
+
+class LouvainLayout(Layout):
+    def __init__(self):
+        pass
+    def __call__(self, G):
+        node_clusters = louvain_partition(G, as_dict=True)
+        pos = community_layout(G, node_clusters)
+        return pos
+        
 
 class Kmeans(Layout):
     def __init__(self):
@@ -159,6 +170,7 @@ AVAILABLE = dict(
     networkx_layouts=None,
 
     # Networkx layouts
+    spring=nx.spring_layout,
     spectral=nx.drawing.layout.spectral_layout,
     fruchterman_reingold=nx.layout.fruchterman_reingold_layout,
     kamada_kawai=nx.layout.kamada_kawai_layout,
@@ -169,6 +181,7 @@ AVAILABLE = dict(
 
     # Cluster layouts
     cluster_layouts=None,
+    louvain=LouvainLayout(),
     #kmeans=Kmeans(),
 )
 

@@ -100,6 +100,10 @@ thickness_slider = Slider(title="Edge thickness", start=.05, end=5, value=CACHE.
 thickness_slider.on_change('value_throttled', VisualizerHandler.thickness_callback)
 CACHE.widgets.thickness_slider = thickness_slider
 
+palette_dropdown = Dropdown(label="Palette", menu=from_dict_to_menu(Setter.ALL_PALETTES))
+palette_dropdown.on_event('menu_item_click', VisualizerHandler.palette_callback)
+CACHE.widgets.palette_dropdown = palette_dropdown
+
 # ------------------ Nodes widgets ------------------- #
 
 nodes_title = Div(text="<h1>Nodes settings</h1>")
@@ -136,7 +140,7 @@ top_pannel = column(
 
 layout_pannel = column(
     layout_title,
-    layout_algo_dropdown,
+    row(layout_algo_dropdown, palette_dropdown)
 )
 
 edges_pannel = column(

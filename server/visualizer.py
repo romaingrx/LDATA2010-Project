@@ -1,4 +1,5 @@
 import random
+import cugraph
 import numpy as np
 from bokeh.palettes import Spectral10, viridis
 
@@ -6,7 +7,7 @@ from .io import JSONHandler
 from . import settings, layouts
 from .settings import LOGGER, CACHE
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, cur_graph, SnsPalette
+from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered
 
 def minmaxscale(x, min, max):
     assert max >= min
@@ -21,6 +22,7 @@ class VisualizerHandler(object):
 
     @classmethod
     def color_callback(cls, attr, old, new):
+        raise Exception("Replaced by palette choice")
         settings.LOGGER.info(f"Color \"{new}\" chosen")
         # TODO
 
@@ -37,7 +39,13 @@ class VisualizerHandler(object):
         settings.LOGGER.info(f"Layout algo \"{event.item}\" chosen")
 
         CACHE.layout = layouts.get(event.item)
-        Setter.graph(update=True) 
+        Setter.graph(update=True)
+
+    @classmethod
+    @JSONHandler.update(path="palette")
+    def palette_callback(cls, event):
+        CACHE.palette = Setter.ALL_PALETTES.get(event.item)
+        Setter.node_colors(update=True)
 
     @classmethod
     @JSONHandler.update(path="plot.nodes.size")
@@ -69,9 +77,17 @@ class VisualizerHandler(object):
 
 
 class Setter:
-    NODE_BASED_ON = ["None", "Degree"]
-    NODE_COLORS = ["random", "degree", "cluster"]
-    __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues")]
+    NODE_BASED_ON = ["Same", None, "Degree"]
+    NODE_COLORS = ["random", None, "degree", None, "louvain"]
+    __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues"), SnsPalette("husl")]
+    ALL_PALETTES = {
+        "random":lambda size:np.random.choice(Setter.__ALL_PALETTES)(size),
+        "None":None,
+        "BuPu (purple)":__ALL_PALETTES[0],
+        "Blues (blue)":__ALL_PALETTES[1],
+        "categorical":None,
+        "husl":__ALL_PALETTES[2]
+    }
 
     @classmethod
     def all(cls, update=True):
@@ -137,8 +153,8 @@ class Setter:
     def node_sizes(cls, update):
         # TODO : adjust node size based on max x,y values (surface covered)
         # Hyperparams
-        NODE_SIZE_MIN = 1e-3 * .05
-        NODE_SIZE_MAX = 1e-3 * .1
+        NODE_SIZE_MIN = .75
+        NODE_SIZE_MAX = 1.
 
         G = CACHE.ultra[CACHE.plot.timestep].G
         basedon = CACHE.plot.nodes.basedon
@@ -150,8 +166,8 @@ class Setter:
         #    print(f"Surface {surface}")
         else:
             surface = 1
-        if basedon == "None":
-            new_value = np.ones(len(G.nodes))
+        if basedon == "Same":
+            new_value = 2. * np.ones(len(G.nodes))
         elif basedon == "Degree":
             degrees = NodesHelper.get_degree(G)
             #print(degrees)
@@ -159,12 +175,12 @@ class Setter:
             #deg_clip = mi + (ma-mi) * (degrees - degrees.min()) / (degrees.max())
             new_value = degrees
         else:
-            return
+            LOGGER.warning(f"Size of nodes based on {basedon} not known")
         #new_value = MinMaxScaler().fit_transform([new_value]).reshape(-1)
         #new_value = .0001 * surface * NODE_SIZE_MAX * new_value / (NODE_SIZE_MIN * new_value.max())
         #print(new_value.min(), new_value.max())
         #new_value = minmaxscale(new_value, NODE_SIZE_MIN, NODE_SIZE_MAX)
-        new_value = .001*np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max()
+        new_value = 1.5e-3 * np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max()
         if update:
             CACHE.plot.source.data["size"] = new_value
         return new_value
@@ -175,26 +191,32 @@ class Setter:
         # TODO : cluster :
         G = CACHE.ultra[CACHE.plot.timestep].G
         based_on = CACHE.plot.nodes.color_based_on
+        palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
         data = CACHE.plot.source.data
         n_nodes = NodesHelper.length(G)
         if based_on == "random":
-            palette = random.choice(cls.__ALL_PALETTES)
             new_colors = np.array(palette(n_nodes))
         elif based_on == "degree":
             degrees = NodesHelper.get_degree(G)
             udegrees = np.unique(degrees)
-            colors = np.random.choice(cls.__ALL_PALETTES)(len(udegrees))
+            colors = palette(len(udegrees))
             sidx = udegrees.argsort()
             s_udegrees= udegrees[sidx]
             s_colors = colors[sidx]
             new_colors = s_colors[np.searchsorted(s_udegrees, degrees)]
-        elif based_on == "cluster":
-            new_colors = np.full(n_nodes, "#000000")
+        elif based_on == "louvain":
+            with dummy_timelog("multigraph to weighted"):
+                M = GraphHelper.multigraph_to_weighted_graph(G)
+            nodes_cluster, score = cugraph.louvain(M)
+            nodes = np.array(list(nodes_cluster.keys()))
+            off_nodes = np.array(G.nodes)
+            clusters = np.array(list(nodes_cluster.values()))
+            s_clusters = ordered(off_nodes, nodes, clusters) # Need to sort the cluster cause the order is not keeped from louvain algo
+            new_colors = assign_color_from_class(s_clusters, palette)
         else:
             LOGGER.warning(f"Color of nodes based on {based_on} not possible! Please choose between these types {cls.NODE_COLORS}")
 
         if update:
-            print(new_colors)
             CACHE.plot.source.data["colors"] = new_colors
         return new_colors
     
