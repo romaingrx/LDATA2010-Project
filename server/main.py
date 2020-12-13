@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure
 from bokeh.layouts import row, column
@@ -55,6 +55,8 @@ nodes_glyph = Circle(
 
 plot.add_glyph(CACHE.plot.source, nodes_glyph)
 
+CACHE.renderers.graph = plot.renderers
+
 #plot.select_one(HoverTool).tooltips = TOOLTIPS
 
 
@@ -75,10 +77,18 @@ plot=hvplot.state
 # ---------- Set all callbacks and buttons ---------- # 
 
 CACHE.widgets = AttrDict()
+CACHE.plot.network = AttrDict()
+CACHE.plot.statistics = AttrDict()
+CACHE.plot.network.widgets = AttrDict()
+CACHE.plot.statistics.widgets = AttrDict()
 
 file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/reference/models/widgets.inputs.html#bokeh.models.widgets.inputs.FileInput
 file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
+
+
+renderer_button = Button(label="Network visualisation")
+renderer_button.on_click(VisualizerHandler.renderer_visualisation_callback)
 
 timestep_slider = Slider(title="Timestep", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1, **STATIC.widget.slider)
 timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
@@ -128,12 +138,21 @@ color_picker.on_change('color', VisualizerHandler.color_callback)
 CACHE.widgets.color_picker = color_picker
 
 
+# -------------------------------------- Statistics visualisation ----------------------------------------------------
+
+stat_title = "Statistical "
+stat_p = figure()
+
+CACHE.plot.statistics.matrix = AttrDict()
+#CACHE.plot.statistics.matrix.source = ColumnDataSource(values=)
+
+
 # Layout disposition
 
 #div = Div(text="<hr class=\"solid\">", css_classes=["hr.solid {border-top: 3px solid #bbb;}"])
 
 top_pannel = column(
-    file_input,
+    row(file_input, renderer_button),
     timestep_slider,
     sizing_mode="scale_width"
 )
@@ -142,27 +161,37 @@ layout_pannel = column(
     layout_title,
     row(layout_algo_dropdown, palette_dropdown)
 )
+CACHE.plot.network.widgets["layout_pannel"] = layout_pannel
 
 edges_pannel = column(
    edges_title,
    thickness_slider,
 )
+CACHE.plot.network.widgets["edges_pannel"] = edges_pannel
 
 nodes_pannel = column(
     nodes_title,
     row(node_size_dropdown, node_size_slider),
     row(node_color_dropdown)
 )
+CACHE.plot.network.widgets["nodes_pannel"] = nodes_pannel
 
-
-control_pannel = column(
-    top_pannel,
+control_graph = column(
     layout_pannel,
     edges_pannel,
     nodes_pannel
 )
 
+control_pannel = column(
+    top_pannel,
+    control_graph
+)
+
+
 layout = row(control_pannel, plot)
+
+other_layout = row(plot, control_pannel)
+CACHE.plot.all_layouts = [layout, other_layout]
 
 # ---------- #
 

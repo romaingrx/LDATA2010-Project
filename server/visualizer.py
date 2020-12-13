@@ -1,7 +1,7 @@
 import random
 import cugraph
 import numpy as np
-from bokeh.palettes import Spectral10, viridis
+from bokeh.plotting import curdoc
 
 from .io import JSONHandler
 from . import settings, layouts
@@ -75,6 +75,15 @@ class VisualizerHandler(object):
         CACHE.plot.timestep = timestep
         Setter.all(update=True)
 
+    @classmethod
+    def renderer_visualisation_callback(cls):
+        all_layouts = CACHE.plot.all_layouts
+        current_idx = CACHE.renderers.current
+        next_idx = (current_idx+1)%len(all_layouts)
+        curdoc().remove_root(all_layouts[current_idx])
+        curdoc().add_root(all_layouts[next_idx])
+        CACHE.renderers.current = next_idx
+        #Setter.change_renderers(current)
 
 class Setter:
     NODE_BASED_ON = ["Same", None, "Degree"]
@@ -88,6 +97,7 @@ class Setter:
         "categorical":None,
         "husl":__ALL_PALETTES[2]
     }
+    RENDERERS = ["graph", "statistics"]
 
     @classmethod
     def all(cls, update=True):
@@ -244,5 +254,14 @@ class Setter:
         nodes_attr = NodesHelper.get_all_attributes(G)
         edges_attr = EdgesHelper.get_all_attributes(G)
         return AttrDict(nodes=nodes_attr, edges=edges_attr)
-
+    @classmethod
+    def change_renderers(cls, current):
+        if current == "graph":
+            #current = "Statistics"
+            for wid in CACHE.plot.network.widgets.values():
+                wid.visible = True
+        else:
+            #current = "Network"
+            for wid in CACHE.plot.network.widgets.values():
+                wid.visible = False
 

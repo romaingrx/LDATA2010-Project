@@ -54,7 +54,10 @@ DEFAULT = AttrDict(
         ),
     ),
     palette="random",
-    layout="random"
+    layout="random",
+    renderers=AttrDict(
+        current=0,
+    )
 )
 
 TITLE = "Graph visualizer"
@@ -81,6 +84,7 @@ def get_logger(logfile, level):
 class RetrieveLastConfig(object):
     @classmethod
     def main(cls, apply_on_cache=False):
+        cls.retrieve_defaults()
         return dict(
             edges=cls.retrieve_edges(apply_on_cache),
             nodes=cls.retrieve_nodes(apply_on_cache),
@@ -139,6 +143,10 @@ class RetrieveLastConfig(object):
 
         return nodes_values
 
+    @classmethod
+    def retrieve_defaults(cls):
+        CACHE.renderers = DEFAULT.renderers
+
 def reset_plot_dict():
     CACHE.plot.source.data = {}
     CACHE.plot.edges.source.data = {}
@@ -150,15 +158,28 @@ def create_globals():
     global INITIALIZED, LOGGER, CACHE
     if "INITIALIZED" not in globals():
         INITIALIZED = True
+
+        # Globals
         CACHE = AttrDict()
-        CACHE.graph_attr = AttrDict()
         CACHE.plot = AttrDict()
+
+        # Network
+        CACHE.graph_attr = AttrDict()
+        CACHE.renderers = AttrDict()
         CACHE.ultra = AttrDict()
-        CACHE.plot.control = AttrDict()
         CACHE.plot.edges = AttrDict()
         CACHE.plot.nodes = AttrDict()
         CACHE.plot.source = ColumnDataSource({})
         CACHE.plot.edges.source = ColumnDataSource({})
+
+        # Statistics
+
+        #CACHE.widgets = AttrDict()
+        CACHE.plot.network = AttrDict()
+        CACHE.plot.statistics = AttrDict()
+        CACHE.plot.network.widgets = AttrDict()
+        CACHE.plot.statistics.widgets = AttrDict()
+
         reset_plot_dict()
 
 def init(level=logging.DEBUG):
