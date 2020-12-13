@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 
-from .utils import AttrDict, list_of_dict_to_dict_of_list, group_list
+from .utils import AttrDict, list_of_dict_to_dict_of_list
 from .settings import CACHE
 
 
@@ -26,7 +26,7 @@ class GraphHelper(object):
         CACHE.df = df
 
         max_timestep = df['timestep'].max()
-        if "widgets" in CACHE:
+        if "timestep_slider" in CACHE.widgets:
             CACHE.widgets.timestep_slider.end = max_timestep
             CACHE.widgets.timestep_slider.value = max_timestep
         CACHE.graph_attr.timesteps = max_timestep
@@ -52,7 +52,7 @@ class GraphHelper(object):
                 G.nodes[n]["home_lat"] = la
 
         CACHE.graph = G
-        CACHE.plot.source.data.update({
+        CACHE.plot.nodes.source.data.update({
             "home_lat":list(dict(G.nodes.data("home_lat")).values()),
             "home_long":list(dict(G.nodes.data("home_long")).values()),
             "name":list(dict(G.nodes.data("name")).values()),

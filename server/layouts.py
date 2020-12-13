@@ -10,7 +10,7 @@ from multiprocessing import Process
 
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict
+from .utils import AttrDict, resize
 from .algorithms import louvain_partition
 from .layout_algorithms import community_layout
 
@@ -76,8 +76,8 @@ class Kmeans(Layout):
 def update_edges(G, nodes, x, y):
     # TODO : update edges coords  
 
-    #x = CACHE.plot.source.data["x"]
-    #y = CACHE.plot.source.data["y"]
+    #x = CACHE.plot.nodes.source.data["x"]
+    #y = CACHE.plot.nodes.source.data["y"]
 
     #[u, v, count] = EdgesHelper.count_attribute(CACHE.graph, "timestep", leq=CACHE.plot.timestep, sort=True)
     [u, v, c] = np.array(G.edges).T
@@ -93,29 +93,42 @@ def update_edges(G, nodes, x, y):
 
 
 def apply_on_nodes(x, y):
-    CACHE.plot.source.data["x"] = x
-    CACHE.plot.source.data["y"] = y
+    CACHE.plot.nodes.source.data["x"] = x
+    CACHE.plot.nodes.source.data["y"] = y
 
 def apply_on_edges(xs, ys):
-    CACHE.plot.edges.source.data["xs"] = xs #np.array(xs, dtype=np.float)
-    CACHE.plot.edges.source.data["ys"] = ys # np.array(ys, dtype=np.float)
-    #CACHE.plot.edges.source.data.update(
+    CACHE.plot.network.edges.source.data["xs"] = xs #np.array(xs, dtype=np.float)
+    CACHE.plot.network.edges.source.data["ys"] = ys # np.array(ys, dtype=np.float)
+    #CACHE.plot.network.edges.source.data.update(
     #    dict(
     #        xs=xs,
     #        ys=ys
     #    )
     #)
-        #CACHE.plot.edges.source.data['xs'] = xs
-        #CACHE.plot.edges.source.data['ys'] = ys
+        #CACHE.plot.network.edges.source.data['xs'] = xs
+        #CACHE.plot.network.edges.source.data['ys'] = ys
 
 def resize_x_y_fig(x=None, y=None):
     if "p" not in CACHE.plot:
         return
     if x is None or y is None:
-        x = CACHE.plot.source.data["x"]
-        y = CACHE.plot.source.data["y"]
-    CACHE.plot.p.x_range = Range1d(x.min(), x.max())
-    CACHE.plot.p.y_range = Range1d(y.min(), y.max())
+        x = CACHE.plot.nodes.source.data["x"]
+        y = CACHE.plot.nodes.source.data["y"]
+    p = CACHE.plot.p
+
+    sizes = CACHE.plot.nodes.source.data.get("size", None)
+
+    x_range = resize(x, sizes, alpha=2.2)
+    y_range = resize(y, sizes, alpha=2.2)
+
+
+    [p.x_range.start, p.x_range.end] = x_range
+    [p.y_range.start, p.y_range.end] = y_range
+
+    #p.x_range = Range1d(x_range[0], x_range[1])
+    #p.y_range = Range1d(y_range[0], y_range[1])
+
+    LOGGER.info(f"Resized network graph :: x_range {x_range} :: y_range {y_range}")
 
 def apply_on_graph(G, update=False):
     # TODO : a thread to apply a continuous update?  (force layout); if so, share an updater thread in the cache

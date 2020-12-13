@@ -37,15 +37,17 @@ STATIC = AttrDict(
             bar_color=COLORS.purple,
             #text_color=COLORS.white
         )
-    )
+    ),
+
 )
 
 DEFAULT = AttrDict(
     plot=AttrDict(
-        edges=AttrDict(
-           thickness=.2,
-            color="#060606"
-        ),
+        network=AttrDict(
+            edges=AttrDict(
+               thickness=.2,
+                color="#060606"
+            )),
         nodes=AttrDict(
             basedon="Same",
             size=20,
@@ -123,11 +125,11 @@ class RetrieveLastConfig(object):
     def retrieve_edges(cls, apply_on_cache=False):
         from . import io
         edges_values = AttrDict()
-        for key in DEFAULT.plot.edges.keys():
-            value = io.JSONHandler.get(("plot", "edges", key)) or DEFAULT.plot.edges[key]
+        for key in DEFAULT.plot.network.edges.keys():
+            value = io.JSONHandler.get(("plot", "network", "edges", key)) or DEFAULT.plot.network.edges[key]
             edges_values[key] = value
             if apply_on_cache:
-                CACHE.plot.edges[key] = value
+                CACHE.plot.network.edges[key] = value
 
         return edges_values
 
@@ -148,10 +150,14 @@ class RetrieveLastConfig(object):
         CACHE.renderers = DEFAULT.renderers
 
 def reset_plot_dict():
-    CACHE.plot.source.data = {}
-    CACHE.plot.edges.source.data = {}
-    CACHE.plot.layouts = AttrDict()
     CACHE.ultra = AttrDict()
+    CACHE.plot.layouts = AttrDict()
+
+    CACHE.plot.nodes.source.data = {}
+    CACHE.plot.network.edges.source.data = {}
+
+    CACHE.plot.statistics.matrix.source.data = {}
+    CACHE.plot.statistics.degree_distribution.source.data = {}
 
 
 def create_globals():
@@ -162,22 +168,26 @@ def create_globals():
         # Globals
         CACHE = AttrDict()
         CACHE.plot = AttrDict()
+        CACHE.renderers = AttrDict()
+        CACHE.widgets = AttrDict()
 
         # Network
+        CACHE.plot.network = AttrDict()
+        CACHE.plot.network.widgets = AttrDict()
         CACHE.graph_attr = AttrDict()
-        CACHE.renderers = AttrDict()
         CACHE.ultra = AttrDict()
-        CACHE.plot.edges = AttrDict()
+        CACHE.plot.network.edges = AttrDict()
         CACHE.plot.nodes = AttrDict()
-        CACHE.plot.source = ColumnDataSource({})
-        CACHE.plot.edges.source = ColumnDataSource({})
+        CACHE.plot.nodes.source = ColumnDataSource({})
+        CACHE.plot.network.edges.source = ColumnDataSource({})
 
         # Statistics
 
-        #CACHE.widgets = AttrDict()
-        CACHE.plot.network = AttrDict()
         CACHE.plot.statistics = AttrDict()
-        CACHE.plot.network.widgets = AttrDict()
+        CACHE.plot.statistics.matrix = AttrDict()
+        CACHE.plot.statistics.degree_distribution = AttrDict()
+        CACHE.plot.statistics.matrix.source = ColumnDataSource({})
+        CACHE.plot.statistics.degree_distribution.source = ColumnDataSource({})
         CACHE.plot.statistics.widgets = AttrDict()
 
         reset_plot_dict()

@@ -112,6 +112,17 @@ def assign_color_from_class(class_values, palette):
     new_colors = s_colors[np.searchsorted(s_uclasses, class_values)]
     return new_colors
 
+def resize(x, size=None, alpha=1.):
+    argmin = np.argmin(x)
+    argmax = np.argmax(x)
+    mi = x[argmin]
+    ma = x[argmax]
+    if size is not None:
+        mi -= alpha * size[argmin]
+        ma += alpha * size[argmax]
+    return [mi, ma]
+
+
 @contextmanager
 def dummy_timelog(desc):
     from .settings import TIMELOGGER

@@ -1,13 +1,15 @@
 import random
 import cugraph
 import numpy as np
+import networkx as nx
+from bokeh.core.properties import Color
 from bokeh.plotting import curdoc
 
 from .io import JSONHandler
 from . import settings, layouts
-from .settings import LOGGER, CACHE
+from .settings import LOGGER, CACHE, COLORS
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered
+from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize
 
 def minmaxscale(x, min, max):
     assert max >= min
@@ -30,7 +32,7 @@ class VisualizerHandler(object):
     @JSONHandler.update(path="plot.edges.thickness")
     def thickness_callback(cls, attr, old, new):
         settings.LOGGER.info(f"Thickness \"{new}\" chosen")
-        CACHE.plot.edges.thickness = new
+        CACHE.plot.network.edges.thickness = new
         Setter.edge_thickness(update=True)
     
     @classmethod
@@ -40,12 +42,14 @@ class VisualizerHandler(object):
 
         CACHE.layout = layouts.get(event.item)
         Setter.graph(update=True)
+        Setter.resize()
+        #layouts.resize_x_y_fig()
 
     @classmethod
     @JSONHandler.update(path="palette")
     def palette_callback(cls, event):
         CACHE.palette = Setter.ALL_PALETTES.get(event.item)
-        Setter.node_colors(update=True)
+        Setter.colors(update=True)
 
     @classmethod
     @JSONHandler.update(path="plot.nodes.size")
@@ -82,6 +86,8 @@ class VisualizerHandler(object):
         next_idx = (current_idx+1)%len(all_layouts)
         curdoc().remove_root(all_layouts[current_idx])
         curdoc().add_root(all_layouts[next_idx])
+        CACHE.widgets.renderer_button.label = Setter.RENDERERS[current_idx]
+        #CACHE.widgets.renderer_button.background = COLORS.white if current_idx == 0 else COLORS.purple
         CACHE.renderers.current = next_idx
         #Setter.change_renderers(current)
 
@@ -97,7 +103,7 @@ class Setter:
         "categorical":None,
         "husl":__ALL_PALETTES[2]
     }
-    RENDERERS = ["graph", "statistics"]
+    RENDERERS = ["Space visualisation", "Statistics visualisation"]
 
     @classmethod
     def all(cls, update=True):
@@ -107,8 +113,11 @@ class Setter:
         g_dict = cls.graph(update=False)
         e_dict = cls.edges(update=False)
         n_dict = cls.nodes(update=False)
+
+        adj_dict = cls.adjacency_metrics(update=False)
+        degree_dist = cls.degree_distribution_metrics(update)
         if update:
-            CACHE.plot.edges.source.data.update(
+            CACHE.plot.network.edges.source.data.update(
                 dict(
                     **e_dict,
                     **ga_dict.edges,
@@ -116,7 +125,7 @@ class Setter:
                     ys=g_dict["ys"],
                 )
             )
-            CACHE.plot.source.data.update(
+            CACHE.plot.nodes.source.data.update(
                 dict(
                     **n_dict,
                     **ga_dict.nodes,
@@ -124,20 +133,26 @@ class Setter:
                     y=g_dict["y"],
                 )
             )
+            CACHE.plot.statistics.matrix.source.data.update(
+                dict(
+                    **adj_dict
+                )
+            )
             cls.node_sizes(update=True)
-            layouts.resize_x_y_fig()
+            cls.colors(update=True)
+            cls.resize()
 
     @classmethod
     def graph(cls, update=True):
         g_dict = layouts.apply_on_graph(CACHE.ultra[CACHE.plot.timestep].G)
         if update:
-            CACHE.plot.edges.source.data.update(
+            CACHE.plot.network.edges.source.data.update(
                 dict(
                     xs=g_dict["xs"],
                     ys=g_dict["ys"],
                 )
             )
-            CACHE.plot.source.data.update(
+            CACHE.plot.nodes.source.data.update(
                 dict(
                     x=g_dict["x"],
                     y=g_dict["y"],
@@ -145,6 +160,25 @@ class Setter:
             )
             cls.node_sizes(update=True)
         return g_dict
+
+    @classmethod
+    def colors(cls, update):
+        nodes = cls.node_colors(update=update)
+        adjacency = cls.adjacency_colors(update=update)
+        degree_distribution = cls.degree_distribution_colors(update=update)
+        return dict(nodes=nodes, adjacency=adjacency, degree_distribution=degree_distribution)
+
+    @classmethod
+    def resize(cls):
+        cls.degree_distribution_resize()
+        cls.adjacency_resize()
+        layouts.resize_x_y_fig()
+        try:
+            print(CACHE.plot.p.x_range.start)
+        except:
+            pass
+
+
 
     @classmethod
     def nodes(cls, update):
@@ -168,9 +202,9 @@ class Setter:
 
         G = CACHE.ultra[CACHE.plot.timestep].G
         basedon = CACHE.plot.nodes.basedon
-        if "x" in CACHE.plot.source.data:
-            x = CACHE.plot.source.data["x"]
-            y = CACHE.plot.source.data["y"]
+        if "x" in CACHE.plot.nodes.source.data:
+            x = CACHE.plot.nodes.source.data["x"]
+            y = CACHE.plot.nodes.source.data["y"]
             surface = (x.max() - x.min())*(y.max() - y.min())
         #    surface = max(100, surface)
         #    print(f"Surface {surface}")
@@ -192,7 +226,7 @@ class Setter:
         #new_value = minmaxscale(new_value, NODE_SIZE_MIN, NODE_SIZE_MAX)
         new_value = 1.5e-3 * np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max()
         if update:
-            CACHE.plot.source.data["size"] = new_value
+            CACHE.plot.nodes.source.data["size"] = new_value
         return new_value
     
     @classmethod
@@ -202,7 +236,7 @@ class Setter:
         G = CACHE.ultra[CACHE.plot.timestep].G
         based_on = CACHE.plot.nodes.color_based_on
         palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
-        data = CACHE.plot.source.data
+        data = CACHE.plot.nodes.source.data
         n_nodes = NodesHelper.length(G)
         if based_on == "random":
             new_colors = np.array(palette(n_nodes))
@@ -227,24 +261,24 @@ class Setter:
             LOGGER.warning(f"Color of nodes based on {based_on} not possible! Please choose between these types {cls.NODE_COLORS}")
 
         if update:
-            CACHE.plot.source.data["colors"] = new_colors
+            CACHE.plot.nodes.source.data["colors"] = new_colors
         return new_colors
     
     @classmethod
     def edge_thickness(cls, update):
         G = cur_graph()
-        slider_thickness = CACHE.plot.edges.thickness
+        slider_thickness = CACHE.plot.network.edges.thickness
         thickness = [slider_thickness] * EdgesHelper.length(G)
         if update:
-            CACHE.plot.edges.source.data["thickness"] = thickness
+            CACHE.plot.network.edges.source.data["thickness"] = thickness
         return thickness
     
     @classmethod
     def edge_colors(cls, update):
         G = cur_graph()
-        colors = [CACHE.plot.edges.color] * EdgesHelper.length(G)
+        colors = [CACHE.plot.network.edges.color] * EdgesHelper.length(G)
         if update:
-            CACHE.plot.edges.source.data["colors"] = colors
+            CACHE.plot.network.edges.source.data["colors"] = colors
         return colors
 
     @classmethod
@@ -254,14 +288,116 @@ class Setter:
         nodes_attr = NodesHelper.get_all_attributes(G)
         edges_attr = EdgesHelper.get_all_attributes(G)
         return AttrDict(nodes=nodes_attr, edges=edges_attr)
+
     @classmethod
     def change_renderers(cls, current):
-        if current == "graph":
-            #current = "Statistics"
+        raise Exception("DEPRECATED")
+        if current == 0:
             for wid in CACHE.plot.network.widgets.values():
                 wid.visible = True
         else:
-            #current = "Network"
             for wid in CACHE.plot.network.widgets.values():
                 wid.visible = False
+        return
 
+
+    @classmethod
+    def adjacency(cls, update):
+        metrics = cls.adjacency_metrics(update=False)
+        colors = cls.adjacency_colors(update=False)
+        ret_dict = dict(**metrics, **colors)
+        if update:
+            CACHE.plot.statistics.matrix.source.data.update(ret_dict)
+        return ret_dict
+
+    @classmethod
+    def adjacency_resize(cls):
+        p = CACHE.plot.statistics.matrix.get("p", False)
+        if p:
+            #counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
+            size = CACHE.plot.statistics.matrix.source.data["size"]
+            x = CACHE.plot.statistics.matrix.source.data["x"]
+            y = CACHE.plot.statistics.matrix.source.data["y"]
+            x_range = resize(x, size, alpha=1.1)
+            y_range = resize(y, size, alpha=1.1)
+            [p.x_range.start, p.x_range.end] = x_range
+            [p.y_range.start, p.y_range.end] = y_range
+            LOGGER.info(f"Resized adjacency graph :: x_range {x_range} :: y_range {y_range}")
+            return True
+        return False
+
+    @classmethod
+    def adjacency_metrics(cls, update):
+        G = cur_graph()
+        M = nx.adjacency_matrix(G).tocoo()
+
+        data = M.data
+        x = M.row
+        y = M.col
+        size = .45 * data / data.max()
+
+        ret_dict = dict(x=x, y=y, size=size)
+        if update:
+            CACHE.plot.statistics.matrix.source.data.update(
+                ret_dict
+            )
+        return ret_dict
+
+    @classmethod
+    def adjacency_colors(cls, update):
+        palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
+        size = CACHE.plot.statistics.matrix.source.data["size"]
+        colors = assign_color_from_class(size, palette)
+        ret_dict = dict(colors=colors)
+        if update:
+            CACHE.plot.statistics.matrix.source.data.update(ret_dict)
+        return ret_dict
+
+    @classmethod
+    def degree_distribution(cls, update):
+        metrics = cls.degree_distribution_metrics(False)
+        colors = cls.degree_distribution_colors(False)
+        ret_dict = dict(**metrics, **colors)
+        if update:
+            CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
+            return ret_dict
+
+    @classmethod
+    def degree_distribution_metrics(cls, update):
+        G = cur_graph()
+        nodes_degrees = dict(G.degree())
+        degrees = list(nodes_degrees.values())
+        udegrees, counts = np.unique(degrees, return_counts=True)
+        sidx = np.argsort(counts)[::-1]
+        udegrees, counts = udegrees[sidx], counts[sidx]
+
+        x = np.arange(len(counts))
+        y = counts / 2
+
+        width = .85 * np.ones_like(udegrees)
+
+        ret_dict = dict(degree=udegrees, counts=counts, x=x, y=y, width=width)
+
+        if update:
+            CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
+        return ret_dict
+
+    @classmethod
+    def degree_distribution_resize(cls):
+        p = CACHE.plot.statistics.degree_distribution.get("p", False)
+        if p:
+            LOGGER.info("Resized degree distribution graph")
+            counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
+            p.y_range.start = -.05; p.y_range.end = 1.05 * counts[0]
+            return True
+        return False
+
+    @classmethod
+    def degree_distribution_colors(cls, update):
+        palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
+        counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
+        colors = palette(len(counts))[::-1]
+        ret_dict = dict(colors=colors)
+        if update:
+            CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
+        return ret_dict

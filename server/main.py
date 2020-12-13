@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure
 from bokeh.layouts import row, column
@@ -28,12 +28,13 @@ TOOLTIPS = [
     ("degree", "@degree")
 ]
 
-plot = figure(width=1200, height=900, toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl") 
+plot = figure(toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl",
+              sizing_mode="stretch_both")
+              #height_policy="fit", width_policy="max", aspect_ratio="auto")
 plot.xgrid.visible = False
 plot.ygrid.visible = False
-plot.axis.visible = False
+#plot.axis.visible = False
 plot.title.text = "Graph visualizer"
-CACHE.plot.p = plot
 
 edges_glyph = MultiLine(
     xs="xs",
@@ -42,7 +43,7 @@ edges_glyph = MultiLine(
     line_width="thickness",
     line_alpha=.5
 )
-plot.add_glyph(CACHE.plot.edges.source, edges_glyph)
+plot.add_glyph(CACHE.plot.network.edges.source, edges_glyph)
 
 nodes_glyph = Circle(
     x="x",
@@ -53,9 +54,9 @@ nodes_glyph = Circle(
     fill_alpha=.75
 )
 
-plot.add_glyph(CACHE.plot.source, nodes_glyph)
+plot.add_glyph(CACHE.plot.nodes.source, nodes_glyph)
 
-CACHE.renderers.graph = plot.renderers
+CACHE.plot.p = plot
 
 #plot.select_one(HoverTool).tooltips = TOOLTIPS
 
@@ -76,19 +77,14 @@ plot=hvplot.state
 
 # ---------- Set all callbacks and buttons ---------- # 
 
-CACHE.widgets = AttrDict()
-CACHE.plot.network = AttrDict()
-CACHE.plot.statistics = AttrDict()
-CACHE.plot.network.widgets = AttrDict()
-CACHE.plot.statistics.widgets = AttrDict()
-
 file_input = FileInput(accept=".csv") # https://docs.bokeh.org/en/latest/docs/reference/models/widgets.inputs.html#bokeh.models.widgets.inputs.FileInput
 file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
 
 
-renderer_button = Button(label="Network visualisation")
+renderer_button = Button(label="Statistics visualisation")
 renderer_button.on_click(VisualizerHandler.renderer_visualisation_callback)
+CACHE.widgets.renderer_button = renderer_button
 
 timestep_slider = Slider(title="Timestep", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1, **STATIC.widget.slider)
 timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
@@ -106,7 +102,7 @@ CACHE.widgets.layout_algo_dropdown = layout_algo_dropdown
 
 edges_title = Div(text="<h1>Edges settings</h1>")
 
-thickness_slider = Slider(title="Edge thickness", start=.05, end=5, value=CACHE.plot.edges.thickness, step=.05, **STATIC.widget.slider)
+thickness_slider = Slider(title="Edge thickness", start=.05, end=5, value=CACHE.plot.network.edges.thickness, step=.05, **STATIC.widget.slider)
 thickness_slider.on_change('value_throttled', VisualizerHandler.thickness_callback)
 CACHE.widgets.thickness_slider = thickness_slider
 
@@ -140,11 +136,47 @@ CACHE.widgets.color_picker = color_picker
 
 # -------------------------------------- Statistics visualisation ----------------------------------------------------
 
-stat_title = "Statistical "
-stat_p = figure()
+default_stat_tools = "save,hover"
 
-CACHE.plot.statistics.matrix = AttrDict()
-#CACHE.plot.statistics.matrix.source = ColumnDataSource(values=)
+adjacency_tooltips = [
+    ("Weight", "@size")
+]
+
+p_adjacency = figure(title="Adjacency matrix", toolbar_location="above", tooltips=adjacency_tooltips, tools=default_stat_tools, output_backend="webgl")
+#p_adjacency.xgrid.visible = False
+#p_adjacency.ygrid.visible = False
+p_adjacency.axis.visible = False
+matrix_glyph = Circle(
+    x="x",
+    y="y",
+    fill_color="colors",
+    radius="size",
+    fill_alpha=.75
+)
+p_adjacency.add_glyph(CACHE.plot.statistics.matrix.source, matrix_glyph)
+CACHE.plot.statistics.matrix.p = p_adjacency
+
+
+degree_distribution_tooltips = [
+    ("Degree", "@degree"),
+    ("Counts", "@counts"),
+]
+
+p_degree_distribution = figure(title="Degree distribution", tooltips=degree_distribution_tooltips, toolbar_location="above", tools=default_stat_tools, output_backend="webgl")
+p_degree_distribution.xgrid.visible = False
+p_degree_distribution.ygrid.visible = False
+p_degree_distribution.axis.visible = False
+degree_distribution_glyph = Rect(
+    x="x",
+    y="y",
+    width="width",
+    height="counts",
+    fill_color="colors",
+)
+p_degree_distribution.add_glyph(CACHE.plot.statistics.degree_distribution.source, degree_distribution_glyph)
+#text_degree_distribution_glyph = Text(x="x", y="y", text="degree", text_color="#000000")
+#p_degree_distribution.add_glyph(CACHE.plot.statistics.degree_distribution.source, text_degree_distribution_glyph)
+CACHE.plot.statistics.degree_distribution.p = p_degree_distribution
 
 
 # Layout disposition
@@ -184,15 +216,23 @@ control_graph = column(
 
 control_pannel = column(
     top_pannel,
-    control_graph
+    control_graph,
+    #sizing_mode="scale_both"
+    #height_policy="fit",
 )
 
+space_layout = row(control_pannel, plot)
 
-layout = row(control_pannel, plot)
+# ------------------------------------------------------ #
 
-other_layout = row(plot, control_pannel)
-CACHE.plot.all_layouts = [layout, other_layout]
+
+graphs = row(p_adjacency, p_degree_distribution)
+
+statistics_layout = row(control_pannel, graphs)
+
 
 # ---------- #
 
-curdoc().add_root(layout)
+Setter.resize()
+CACHE.plot.all_layouts = [space_layout, statistics_layout]
+curdoc().add_root(space_layout)
