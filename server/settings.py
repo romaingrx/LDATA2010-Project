@@ -38,7 +38,10 @@ STATIC = AttrDict(
             #text_color=COLORS.white
         )
     ),
-
+    figure=AttrDict(
+        x_range=[0, 1], # Needed to update the range later (why???)
+        y_range=[0, 1],
+    )
 )
 
 DEFAULT = AttrDict(
@@ -148,6 +151,9 @@ class RetrieveLastConfig(object):
     @classmethod
     def retrieve_defaults(cls):
         CACHE.renderers = DEFAULT.renderers
+
+
+
 
 def reset_plot_dict():
     CACHE.ultra = AttrDict()

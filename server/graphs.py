@@ -26,9 +26,12 @@ class GraphHelper(object):
         CACHE.df = df
 
         max_timestep = df['timestep'].max()
+        min_timestep = df['timestep'].min()+1
         if "timestep_slider" in CACHE.widgets:
+            CACHE.widgets.timestep_slider.start = min_timestep
             CACHE.widgets.timestep_slider.end = max_timestep
             CACHE.widgets.timestep_slider.value = max_timestep
+        CACHE.graph_attr.min_timestep = min_timestep
         CACHE.graph_attr.timesteps = max_timestep
         CACHE.plot.timestep = max_timestep
 

@@ -4,21 +4,14 @@ import numpy as np
 import networkx as nx
 from bokeh.core.properties import Color
 from bokeh.plotting import curdoc
+from bokeh.models import Range1d
+from bokeh.models import BoxZoomTool
 
 from .io import JSONHandler
 from . import settings, layouts
 from .settings import LOGGER, CACHE, COLORS
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize
-
-def minmaxscale(x, min, max):
-    assert max >= min
-    x = np.array(x)
-    x01 = (x-np.min(x))/(np.max(x)-np.min(x))
-    print(x01)
-    print(x01.min(), x01.max())
-    y = (max-min)*x+min
-    return y
+from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize, dummy_scale
 
 class VisualizerHandler(object):
 
@@ -34,7 +27,7 @@ class VisualizerHandler(object):
         settings.LOGGER.info(f"Thickness \"{new}\" chosen")
         CACHE.plot.network.edges.thickness = new
         Setter.edge_thickness(update=True)
-    
+
     @classmethod
     @JSONHandler.update(path="layout")
     def layout_algo_callback(cls, event):
@@ -42,8 +35,7 @@ class VisualizerHandler(object):
 
         CACHE.layout = layouts.get(event.item)
         Setter.graph(update=True)
-        Setter.resize()
-        #layouts.resize_x_y_fig()
+        layouts.resize_x_y_fig()
 
     @classmethod
     @JSONHandler.update(path="palette")
@@ -107,8 +99,6 @@ class Setter:
 
     @classmethod
     def all(cls, update=True):
-        if CACHE.plot.timestep not in CACHE.ultra:
-            CACHE.ultra[CACHE.plot.timestep] = AttrDict(G=GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep))
         ga_dict = cls.graph_attribute(update=False)
         g_dict = cls.graph(update=False)
         e_dict = cls.edges(update=False)
@@ -121,16 +111,18 @@ class Setter:
                 dict(
                     **e_dict,
                     **ga_dict.edges,
-                    xs=g_dict["xs"],
-                    ys=g_dict["ys"],
+                    **g_dict.edges,
+                    #xs=g_dict["xs"],
+                    #ys=g_dict["ys"],
                 )
             )
             CACHE.plot.nodes.source.data.update(
                 dict(
                     **n_dict,
                     **ga_dict.nodes,
-                    x=g_dict["x"],
-                    y=g_dict["y"],
+                    **g_dict.nodes,
+                    #x=g_dict["x"],
+                    #y=g_dict["y"],
                 )
             )
             CACHE.plot.statistics.matrix.source.data.update(
@@ -144,18 +136,20 @@ class Setter:
 
     @classmethod
     def graph(cls, update=True):
-        g_dict = layouts.apply_on_graph(CACHE.ultra[CACHE.plot.timestep].G)
+        g_dict = layouts.apply_on_graph(cur_graph())
         if update:
             CACHE.plot.network.edges.source.data.update(
                 dict(
-                    xs=g_dict["xs"],
-                    ys=g_dict["ys"],
+                    **g_dict.edges
+                    #xs=g_dict["xs"],
+                    #ys=g_dict["ys"],
                 )
             )
             CACHE.plot.nodes.source.data.update(
                 dict(
-                    x=g_dict["x"],
-                    y=g_dict["y"],
+                    **g_dict.nodes
+                    #x=g_dict["x"],
+                    #y=g_dict["y"],
                 )
             )
             cls.node_sizes(update=True)
@@ -166,6 +160,7 @@ class Setter:
         nodes = cls.node_colors(update=update)
         adjacency = cls.adjacency_colors(update=update)
         degree_distribution = cls.degree_distribution_colors(update=update)
+        cls.plot_colors()
         return dict(nodes=nodes, adjacency=adjacency, degree_distribution=degree_distribution)
 
     @classmethod
@@ -178,6 +173,12 @@ class Setter:
         except:
             pass
 
+    @classmethod
+    def plot_colors(cls):
+        N = 20
+        palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
+        #overlay = CACHE.plot.p.select_one(BoxZoomTool).overlay
+        #overlay.line_color = palette(N)[random.randint(0, N-1)]
 
 
     @classmethod
@@ -195,12 +196,16 @@ class Setter:
 
     @classmethod
     def node_sizes(cls, update):
+
+
+
         # TODO : adjust node size based on max x,y values (surface covered)
         # Hyperparams
-        NODE_SIZE_MIN = .75
-        NODE_SIZE_MAX = 1.
+        FACTOR = 5
+        NODE_SIZE_MAX = .0025
+        NODE_SIZE_MIN = NODE_SIZE_MAX/FACTOR
 
-        G = CACHE.ultra[CACHE.plot.timestep].G
+        G = cur_graph()
         basedon = CACHE.plot.nodes.basedon
         if "x" in CACHE.plot.nodes.source.data:
             x = CACHE.plot.nodes.source.data["x"]
@@ -214,17 +219,12 @@ class Setter:
             new_value = 2. * np.ones(len(G.nodes))
         elif basedon == "Degree":
             degrees = NodesHelper.get_degree(G)
-            #print(degrees)
-            #ma = 2; mi = .5
-            #deg_clip = mi + (ma-mi) * (degrees - degrees.min()) / (degrees.max())
             new_value = degrees
         else:
             LOGGER.warning(f"Size of nodes based on {basedon} not known")
-        #new_value = MinMaxScaler().fit_transform([new_value]).reshape(-1)
-        #new_value = .0001 * surface * NODE_SIZE_MAX * new_value / (NODE_SIZE_MIN * new_value.max())
-        #print(new_value.min(), new_value.max())
-        #new_value = minmaxscale(new_value, NODE_SIZE_MIN, NODE_SIZE_MAX)
-        new_value = 1.5e-3 * np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max()
+
+        #new_value = 1.5e-3 * np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max() # WORKING BEST
+        new_value = CACHE.plot.nodes.size * np.sqrt(surface) * dummy_scale(new_value, NODE_SIZE_MIN, NODE_SIZE_MAX)
         if update:
             CACHE.plot.nodes.source.data["size"] = new_value
         return new_value
@@ -284,7 +284,7 @@ class Setter:
     @classmethod
     def graph_attribute(cls, update):
         #G = GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep)
-        G = CACHE.ultra[CACHE.plot.timestep].G
+        G = cur_graph()
         nodes_attr = NodesHelper.get_all_attributes(G)
         edges_attr = EdgesHelper.get_all_attributes(G)
         return AttrDict(nodes=nodes_attr, edges=edges_attr)
@@ -388,7 +388,10 @@ class Setter:
         if p:
             LOGGER.info("Resized degree distribution graph")
             counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
+            x = CACHE.plot.statistics.degree_distribution.source.data["x"]
+            width = CACHE.plot.statistics.degree_distribution.source.data["width"]
             p.y_range.start = -.05; p.y_range.end = 1.05 * counts[0]
+            p.x_range.start = x[0]-.75*width[0]; p.x_range.end = x[-1]+.75*width[-1]
             return True
         return False
 

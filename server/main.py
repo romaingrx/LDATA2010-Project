@@ -1,4 +1,4 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure
 from bokeh.layouts import row, column
@@ -28,22 +28,36 @@ TOOLTIPS = [
     ("degree", "@degree")
 ]
 
-plot = figure(toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl",
-              sizing_mode="stretch_both")
+plot = figure(toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **STATIC.figure)
               #height_policy="fit", width_policy="max", aspect_ratio="auto")
 plot.xgrid.visible = False
 plot.ygrid.visible = False
 #plot.axis.visible = False
 plot.title.text = "Graph visualizer"
 
-edges_glyph = MultiLine(
-    xs="xs",
-    ys="ys",
+bezier_glyph = Bezier(
+    x0="x0",
+    y0="y0",
+    x1="x1",
+    y1="y1",
+    cx0="x0",
+    cy0="y0",
+    cx1="x1",
+    cy1="y1",
     line_color="colors",
     line_width="thickness",
     line_alpha=.5
 )
-plot.add_glyph(CACHE.plot.network.edges.source, edges_glyph)
+plot.add_glyph(CACHE.plot.network.edges.source, bezier_glyph)
+
+#edges_glyph = MultiLine(
+#    xs="xs",
+#    ys="ys",
+#    line_color="colors",
+#    line_width="thickness",
+#    line_alpha=.5
+#)
+#plot.add_glyph(CACHE.plot.network.edges.source, edges_glyph)
 
 nodes_glyph = Circle(
     x="x",
@@ -53,7 +67,7 @@ nodes_glyph = Circle(
     #size="size",
     fill_alpha=.75
 )
-
+plot.toolbar.autohide = True
 plot.add_glyph(CACHE.plot.nodes.source, nodes_glyph)
 
 CACHE.plot.p = plot
@@ -86,7 +100,7 @@ renderer_button = Button(label="Statistics visualisation")
 renderer_button.on_click(VisualizerHandler.renderer_visualisation_callback)
 CACHE.widgets.renderer_button = renderer_button
 
-timestep_slider = Slider(title="Timestep", start=1, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1, **STATIC.widget.slider)
+timestep_slider = Slider(title="Timestep", start=CACHE.graph_attr.min_timestep, end=CACHE.graph_attr.timesteps, value=CACHE.plot.timestep, step=1, **STATIC.widget.slider)
 timestep_slider.on_change('value_throttled', VisualizerHandler.timestep_callback)
 CACHE.widgets.timestep_slider = timestep_slider
 
@@ -142,7 +156,7 @@ adjacency_tooltips = [
     ("Weight", "@size")
 ]
 
-p_adjacency = figure(title="Adjacency matrix", toolbar_location="above", tooltips=adjacency_tooltips, tools=default_stat_tools, output_backend="webgl")
+p_adjacency = figure(title="Adjacency matrix", toolbar_location="above", tooltips=adjacency_tooltips, tools=default_stat_tools, output_backend="webgl", **STATIC.figure)
 #p_adjacency.xgrid.visible = False
 #p_adjacency.ygrid.visible = False
 p_adjacency.axis.visible = False
@@ -162,7 +176,7 @@ degree_distribution_tooltips = [
     ("Counts", "@counts"),
 ]
 
-p_degree_distribution = figure(title="Degree distribution", tooltips=degree_distribution_tooltips, toolbar_location="above", tools=default_stat_tools, output_backend="webgl")
+p_degree_distribution = figure(title="Degree distribution", tooltips=degree_distribution_tooltips, toolbar_location="above", tools=default_stat_tools, output_backend="webgl", **STATIC.figure)
 p_degree_distribution.xgrid.visible = False
 p_degree_distribution.ygrid.visible = False
 p_degree_distribution.axis.visible = False
@@ -221,14 +235,22 @@ control_pannel = column(
     #height_policy="fit",
 )
 
-space_layout = row(control_pannel, plot)
+space_layout = row(
+    control_pannel,
+    column(plot, sizing_mode="stretch_both")
+           #width_policy="max", height_policy="max")
+)
 
 # ------------------------------------------------------ #
 
 
 graphs = row(p_adjacency, p_degree_distribution)
 
-statistics_layout = row(control_pannel, graphs)
+statistics_layout = row(
+    control_pannel,
+    #graphs,
+    column(graphs, sizing_mode="stretch_both")
+)
 
 
 # ---------- #

@@ -7,8 +7,8 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 class AttrDict(dict):
-    __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
 
 def stringToBase64(s):
     return base64.b64encode(s.encode('utf-8'))
@@ -72,9 +72,27 @@ def DEPRECATED_list_of_dict_to_dict_of_list(lst, idx=None):
 def group_list(lst, idx):
     pass
 
+
+def create_new_timestep_dict():
+    from .settings import CACHE
+    from .graphs import GraphHelper
+    CACHE.ultra[CACHE.plot.timestep] = AttrDict(
+        G=GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep),
+        layouts=AttrDict()
+    )
+
+def timestep_cache():
+    from .settings import CACHE
+    timestep = CACHE.plot.timestep
+    if timestep not in CACHE.ultra:
+        create_new_timestep_dict()
+    return CACHE.ultra[timestep]
+
 def cur_graph():
     from .settings import CACHE
-    return CACHE.ultra[CACHE.plot.timestep].G
+    return timestep_cache().G
+
+
 
 class SnsPalette:
     def __init__(self, color):
@@ -112,16 +130,33 @@ def assign_color_from_class(class_values, palette):
     new_colors = s_colors[np.searchsorted(s_uclasses, class_values)]
     return new_colors
 
-def resize(x, size=None, alpha=1.):
+def resize(x, size=None, alpha=1., size_alpha=1.):
+    """
+    :param x: the space points
+    :param size: if each points has a fixed size (node)
+    :param alpha: how much we dilate the [min,max] range
+    :param size_alpha: how much we dilate the size values
+    :return: min, max
+    """
     argmin = np.argmin(x)
     argmax = np.argmax(x)
     mi = x[argmin]
     ma = x[argmax]
+    midist = abs(ma-mi)/2
     if size is not None:
-        mi -= alpha * size[argmin]
-        ma += alpha * size[argmax]
-    return [mi, ma]
+        mi -= size_alpha * size[argmin]
+        ma += size_alpha * size[argmax]
+    return mi-(alpha-1.)*midist, ma+(alpha-1.)*midist
 
+def dummy_scale(values, w, z):
+    x, y = values.min(), values.max()
+    dist_xy = abs(x-y)
+    dist_wz = abs(w-z)
+    if dist_xy == 0:
+        return np.full_like(values, w+dist_wz/2)
+    values_01 = (values - x)/dist_xy
+    values_scaled = w + dist_wz * values_01
+    return values_scaled
 
 @contextmanager
 def dummy_timelog(desc):

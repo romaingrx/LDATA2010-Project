@@ -10,7 +10,7 @@ from multiprocessing import Process
 
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, resize
+from .utils import AttrDict, resize, timestep_cache
 from .algorithms import louvain_partition
 from .layout_algorithms import community_layout
 
@@ -86,27 +86,26 @@ def update_edges(G, nodes, x, y):
     u_idx = npi.indices(nodes, u)
     v_idx = npi.indices(nodes, v)
 
-    xs = np.c_[x[u_idx], x[v_idx]]
-    ys = np.c_[y[u_idx], y[v_idx]]
+    y0, y1 = y[u_idx], y[v_idx]
+    x0, x1 = x[u_idx], x[v_idx]
+    xs = np.c_[x0, x1]
+    ys = np.c_[y0, y1]
 
-    return xs, ys
+
+    return xs, ys, x0, x1, y0, y1
 
 
-def apply_on_nodes(x, y):
-    CACHE.plot.nodes.source.data["x"] = x
-    CACHE.plot.nodes.source.data["y"] = y
+def apply_on_edges(xs, ys, x0, x1, y0, y1):
+    CACHE.plot.nodes.source.data["xs"] = xs
+    CACHE.plot.nodes.source.data["ys"] = ys
+    CACHE.plot.nodes.source.data["x0"] = x0
+    CACHE.plot.nodes.source.data["x1"] = x1
+    CACHE.plot.nodes.source.data["y0"] = y0
+    CACHE.plot.nodes.source.data["y1"] = y1
 
-def apply_on_edges(xs, ys):
-    CACHE.plot.network.edges.source.data["xs"] = xs #np.array(xs, dtype=np.float)
-    CACHE.plot.network.edges.source.data["ys"] = ys # np.array(ys, dtype=np.float)
-    #CACHE.plot.network.edges.source.data.update(
-    #    dict(
-    #        xs=xs,
-    #        ys=ys
-    #    )
-    #)
-        #CACHE.plot.network.edges.source.data['xs'] = xs
-        #CACHE.plot.network.edges.source.data['ys'] = ys
+def apply_on_nodes(xs, ys):
+    CACHE.plot.network.edges.source.data["xs"] = xs
+    CACHE.plot.network.edges.source.data["ys"] = ys
 
 def resize_x_y_fig(x=None, y=None):
     if "p" not in CACHE.plot:
@@ -118,12 +117,14 @@ def resize_x_y_fig(x=None, y=None):
 
     sizes = CACHE.plot.nodes.source.data.get("size", None)
 
-    x_range = resize(x, sizes, alpha=2.2)
-    y_range = resize(y, sizes, alpha=2.2)
+    x_range = resize(x, sizes, alpha=1.5)
+    y_range = resize(y, sizes, alpha=1.5)
 
-
-    [p.x_range.start, p.x_range.end] = x_range
+    [CACHE.plot.p.x_range.start, CACHE.plot.p.x_range.end] = x_range
     [p.y_range.start, p.y_range.end] = y_range
+
+    #CACHE.plot.p.x_range = Range1d(*x_range)
+    #p.y_range = Range1d(*y_range)
 
     #p.x_range = Range1d(x_range[0], x_range[1])
     #p.y_range = Range1d(y_range[0], y_range[1])
@@ -148,19 +149,23 @@ def apply_on_graph(G, update=False):
         pos = np.array(pos); nodes = np.array(nodes)
 
         [x, y] = pos.T # shape (2, V)
-        xs, ys = update_edges(G, nodes, x, y)
+        xs, ys, x0, x1, y0, y1 = update_edges(G, nodes, x, y)
 
         # Save the computed layout in the cache in order to compute only once
-        xs, ys = list(xs), list(ys)
-        CACHE.plot.layouts[CACHE.layout.__name__] = AttrDict(
+        xs, ys, x0, x1, y0, y1 = list(xs), list(ys), list(x0), list(x1), list(y0), list(y1)
+        timestep_cache().layouts[CACHE.layout.__name__] = AttrDict(
             x=x,
             y=y,
             xs=xs,
-            ys=ys
-            )
+            ys=ys,
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1
+        )
 
     if update:
-         te = Thread(target=apply_on_edges, args=(xs, ys))
+         te = Thread(target=apply_on_edges, args=(xs, ys, x0, x1, y0, y1))
          te.start()
          tn = Thread(target=apply_on_nodes, args=(x, y))
          tn.start()
@@ -170,7 +175,7 @@ def apply_on_graph(G, update=False):
          te.join(); tn.join()
 
 
-    return AttrDict(nodes=nodes, x=x, y=y, xs=xs, ys=ys)
+    return AttrDict(nodes=AttrDict(x=x, y=y), edges=AttrDict(xs=xs, ys=ys, x0=x0, x1=x1, y0=y0, y1=y1, cx0=[w+.5 for w in x0]))
 
 
 AVAILABLE = dict(
