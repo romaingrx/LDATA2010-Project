@@ -10,7 +10,7 @@ from multiprocessing import Process
 
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, resize, timestep_cache
+from .utils import AttrDict, resize, timestep_cache, dummy_timelog
 from .algorithms import louvain_partition
 from .layout_algorithms import community_layout
 
@@ -142,14 +142,16 @@ def apply_on_graph(G, update=False):
         x, y = computed_layout.x, computed_layout.y
         xs, ys = computed_layout.xs, computed_layout.ys
     else: # Compute the new layout
-        pos = CACHE.layout(G)
+        with dummy_timelog("get pos from layout"):
+            pos = CACHE.layout(G)
         # TODO : Speedup this shit (no sorting?)
         #sorted_pos = sorted(pos.items(), key=lambda x:x[0])
         nodes, pos = list(zip(*pos.items()))
         pos = np.array(pos); nodes = np.array(nodes)
 
         [x, y] = pos.T # shape (2, V)
-        xs, ys, x0, x1, y0, y1 = update_edges(G, nodes, x, y)
+        with dummy_timelog("update edges"):
+            xs, ys, x0, x1, y0, y1 = update_edges(G, nodes, x, y)
 
         # Save the computed layout in the cache in order to compute only once
         xs, ys, x0, x1, y0, y1 = list(xs), list(ys), list(x0), list(x1), list(y0), list(y1)
@@ -207,4 +209,7 @@ def get(key:str):
     return AVAILABLE.get(key, None)
 
 def get_random():
-    return random.choice(list(AVAILABLE.values()))
+    fct = None
+    while fct is None:
+        fct = random.choice(list(AVAILABLE.values()))
+    return fct

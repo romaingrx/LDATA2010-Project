@@ -172,3 +172,16 @@ def dummy_timelog(desc):
         time_taken /= 1e3
     TIMELOGGER.info(f"{desc} :: {time_taken:.2f} {unity}")
 
+
+def wgs84_to_mercator(long, lat):
+    r = 6378137
+    y = long * r * np.pi / 180.
+    x = np.log(np.tan((90. + lat) * np.pi / 360.)) * r
+    return x, y
+
+if __name__=='__main__':
+    long = 50.8585209256615
+    lat = 4.28512395570893
+    
+    x, y = wgs84_to_mercator(long, lat)
+    print(x, y)

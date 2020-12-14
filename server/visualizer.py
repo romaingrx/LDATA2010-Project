@@ -46,7 +46,6 @@ class VisualizerHandler(object):
     @classmethod
     @JSONHandler.update(path="plot.nodes.size")
     def node_size_callback(cls, attr, old, new):
-        settings.LOGGER.info(f"Node size {new} chosen")
         CACHE.plot.nodes.size = int(new)
         Setter.node_sizes(update=True)
 
@@ -54,7 +53,7 @@ class VisualizerHandler(object):
     @JSONHandler.update(path="plot.nodes.basedon")
     def node_size_based_callback(cls, event):
         settings.LOGGER.info(f"Node size based on \"{event.item}\"")
-        CACHE.plot.nodes.basedon = event.item 
+        CACHE.plot.nodes.basedon = event.item
         Setter.node_sizes(update=True)
         
     @classmethod
@@ -76,15 +75,18 @@ class VisualizerHandler(object):
         all_layouts = CACHE.plot.all_layouts
         current_idx = CACHE.renderers.current
         next_idx = (current_idx+1)%len(all_layouts)
+        next_next_idx = (current_idx+2)%len(all_layouts)
         curdoc().remove_root(all_layouts[current_idx])
         curdoc().add_root(all_layouts[next_idx])
-        CACHE.widgets.renderer_button.label = Setter.RENDERERS[current_idx]
+        CACHE.widgets.renderer_button.label = Setter.RENDERERS[next_next_idx]
         #CACHE.widgets.renderer_button.background = COLORS.white if current_idx == 0 else COLORS.purple
         CACHE.renderers.current = next_idx
         #Setter.change_renderers(current)
 
 class Setter:
-    NODE_BASED_ON = ["Same", None, "Degree"]
+    NODE_BASED_ON = ["Same", None, "Degree",
+                     #"infected"
+                     ]
     NODE_COLORS = ["random", None, "degree", None, "louvain"]
     __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues"), SnsPalette("husl")]
     ALL_PALETTES = {
@@ -95,7 +97,7 @@ class Setter:
         "categorical":None,
         "husl":__ALL_PALETTES[2]
     }
-    RENDERERS = ["Space visualisation", "Statistics visualisation"]
+    RENDERERS = ["Space visualisation", "Statistics visualisation", "Maps visualisation"]
 
     @classmethod
     def all(cls, update=True):
@@ -167,11 +169,8 @@ class Setter:
     def resize(cls):
         cls.degree_distribution_resize()
         cls.adjacency_resize()
+        cls.maps_resize()
         layouts.resize_x_y_fig()
-        try:
-            print(CACHE.plot.p.x_range.start)
-        except:
-            pass
 
     @classmethod
     def plot_colors(cls):
@@ -222,6 +221,7 @@ class Setter:
             new_value = degrees
         else:
             LOGGER.warning(f"Size of nodes based on {basedon} not known")
+            return []
 
         #new_value = 1.5e-3 * np.sqrt(surface) * CACHE.plot.nodes.size * new_value / new_value.max() # WORKING BEST
         new_value = CACHE.plot.nodes.size * np.sqrt(surface) * dummy_scale(new_value, NODE_SIZE_MIN, NODE_SIZE_MAX)
@@ -404,3 +404,17 @@ class Setter:
         if update:
             CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
         return ret_dict
+
+
+    @classmethod
+    def maps_resize(cls, *args, **kwargs):
+        p = CACHE.plot.maps.get("p_maps", False)
+        if p:
+            home_x, home_y = NodesHelper.get_attributes(cur_graph(), ["home_x", "home_y"])
+            x_merc_range = resize(home_x, alpha=1.2)
+            y_merc_range = resize(home_y, alpha=1.2)
+            p.x_range.start, p.x_range.end = x_merc_range
+            p.y_range.start, p.y_range.end = y_merc_range
+            LOGGER.info(f"Resized maps :: x_range {x_merc_range} :: y_range {y_merc_range}")
+            return True
+        return False

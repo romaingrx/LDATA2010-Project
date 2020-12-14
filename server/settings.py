@@ -196,6 +196,12 @@ def create_globals():
         CACHE.plot.statistics.degree_distribution.source = ColumnDataSource({})
         CACHE.plot.statistics.widgets = AttrDict()
 
+
+        # Maps
+
+        CACHE.plot.maps = AttrDict()
+        CACHE.plot.maps.widgets = AttrDict()
+
         reset_plot_dict()
 
 def init(level=logging.DEBUG):

@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 
-from .utils import AttrDict, list_of_dict_to_dict_of_list
+from .utils import AttrDict, list_of_dict_to_dict_of_list, dummy_timelog, wgs84_to_mercator
 from .settings import CACHE
 
 
@@ -42,28 +42,40 @@ class GraphHelper(object):
         for p in ("person1", "person2"):
             df[p] = le.transform(df[p].values.astype(str))
 
-        G = nx.from_pandas_edgelist(df, source="person1", target="person2", edge_attr=("timestep", "infected1", "infected2", "loc_lat", "loc_long"), create_using=nx.OrderedMultiGraph)
+        # df["loc_long"], df["loc_lat"] = df["loc_lat"], df["loc_long"]
+        df["loc_x"], df["loc_y"] = wgs84_to_mercator(df["loc_long"].values, df["loc_lat"].values)
 
-        for n in (1, 2):
-            nodes = df["person%d"%n].values
-            home_lat = df["home%d_lat"%n].values
-            home_long = df["home%d_long"%n].values
-            people = le.inverse_transform(nodes)
-            for n, p, lo, la in zip(nodes, people, home_long, home_lat):
-                G.nodes[n]["name"] = str(p)
-                G.nodes[n]["home_long"] = lo
-                G.nodes[n]["home_lat"] = la
+        with dummy_timelog("from pandas edges list"):
+            G = nx.from_pandas_edgelist(df, source="person1", target="person2", edge_attr=("timestep", "infected1", "infected2", "loc_lat", "loc_long", "loc_x", "loc_y"), create_using=nx.OrderedMultiGraph)
 
-        CACHE.graph = G
-        CACHE.plot.nodes.source.data.update({
-            "home_lat":list(dict(G.nodes.data("home_lat")).values()),
-            "home_long":list(dict(G.nodes.data("home_long")).values()),
-            "name":list(dict(G.nodes.data("name")).values()),
-            "degree": list(dict(G.degree).values())
-        })
+        with dummy_timelog("set each person value per nodes"):
+            for n in (1, 2):
+                nodes = df["person%d"%n].values
+                home_lat = df["home%d_lat"%n].values
+                home_long = df["home%d_long"%n].values
+                people = le.inverse_transform(nodes)
+                home_x, home_y = wgs84_to_mercator(home_long, home_lat)
+                for n, p, lo, la, x, y in zip(nodes, people, home_long, home_lat, home_x, home_y):
+                    G.nodes[n]["name"] = str(p)
+                    G.nodes[n]["home_long"] = lo
+                    G.nodes[n]["home_lat"] = la
+                    G.nodes[n]["home_x"] = float(x)
+                    G.nodes[n]["home_y"] = float(y)
 
-        Setter.all()
+        with dummy_timelog("update cache in graph"):
+            CACHE.graph = G
+            CACHE.plot.nodes.source.data.update({
+                "home_x":list(dict(G.nodes.data("home_x")).values()),
+                "home_y":list(dict(G.nodes.data("home_y")).values()),
+                "home_lat":list(dict(G.nodes.data("home_lat")).values()),
+                "home_long":list(dict(G.nodes.data("home_long")).values()),
+                "name":list(dict(G.nodes.data("name")).values()),
+                "degree": list(dict(G.degree).values())
+            })
 
+        with dummy_timelog("setter all"):
+            Setter.all()
+        
         return G
 
 
@@ -212,6 +224,26 @@ class NodesHelper:
             attr = np.array(list(nodes_attr_dict.values()))
 
         off_nodes = np.array(list(G.nodes))
+
+    @classmethod
+    def _get_attribute(cls, G, attr):
+        attrlist = list(dict(G.nodes.data(attr)).values())
+        return np.array(attrlist)
+
+    @classmethod
+    def get_attributes(cls, G, attrs):
+        if isinstance(attrs, str):
+            attrs = [attrs]
+        answer = tuple()
+        for attr in attrs:
+            answer += (cls._get_attribute(G, attr),)
+        return answer if len(answer) > 1 else answer[0]
+
+    #@classmethod
+    #def get_mid_long_lat(cls, G):
+    #    home_long = cls.get_attribute(G, "home_long")
+    #    home_lat = cls.get_attribute(G, "home_lat")
+    #    return np.mean(home_long),
         
 
 

@@ -1,6 +1,8 @@
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier
+import os
+
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions
 from bokeh.models.widgets import FileInput
-from bokeh.plotting import curdoc, figure
+from bokeh.plotting import curdoc, figure, gmap
 from bokeh.layouts import row, column
 
 #import holoviews as hv
@@ -8,10 +10,13 @@ from bokeh.layouts import row, column
 
 
 from . import settings, layouts
+from .graphs import NodesHelper
 from .io import FileInputHandler
-from .utils import AttrDict, from_dict_to_menu
+from .utils import AttrDict, from_dict_to_menu, cur_graph, resize
 from .visualizer import VisualizerHandler, Setter
 from .settings import CACHE, STATIC
+
+GOOGLE_APIKEY = os.environ["GOOGLE_APIKEY"]
 
 # GLOBAL VARIABLES
 
@@ -193,6 +198,30 @@ p_degree_distribution.add_glyph(CACHE.plot.statistics.degree_distribution.source
 CACHE.plot.statistics.degree_distribution.p = p_degree_distribution
 
 
+# Google maps dispo
+
+from bokeh.tile_providers import get_provider, CARTODBPOSITRON, OSM
+
+tile_provider = get_provider(CARTODBPOSITRON)
+
+# range bounds supplied in web mercator coordinates
+p_maps = figure(x_range=(0.0, 0.1), y_range=(0.0, 0.1),
+           x_axis_type="mercator", y_axis_type="mercator")
+p_maps.add_tile(tile_provider)
+
+p_maps.circle(
+    x="home_x",
+    y="home_y",
+    fill_color="colors",
+    radius=75,
+    fill_alpha=1,
+    source=CACHE.plot.nodes.source
+)
+#p_maps.add_glyph(CACHE.plot.nodes.source, map_circle_glyph)
+
+CACHE.plot.maps.p_maps = p_maps
+
+
 # Layout disposition
 
 #div = Div(text="<hr class=\"solid\">", css_classes=["hr.solid {border-top: 3px solid #bbb;}"])
@@ -253,8 +282,16 @@ statistics_layout = row(
 )
 
 
+# ------------------------------------------------------ #
+
+map_layout = row(
+    control_pannel,
+    p_maps
+)
+
+
 # ---------- #
 
 Setter.resize()
-CACHE.plot.all_layouts = [space_layout, statistics_layout]
+CACHE.plot.all_layouts = [space_layout, statistics_layout, map_layout]
 curdoc().add_root(space_layout)
