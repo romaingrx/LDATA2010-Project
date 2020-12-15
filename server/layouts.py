@@ -11,7 +11,7 @@ from multiprocessing import Process
 from .settings import CACHE, LOGGER
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
 from .utils import AttrDict, resize, timestep_cache, dummy_timelog
-from .algorithms import louvain_partition
+from .algorithms import louvain_partition, katz_centrality
 from .layout_algorithms import community_layout
 
 from fa2 import ForceAtlas2
@@ -23,6 +23,13 @@ def random_layout(G:nx.Graph):
 class Layout:
     def __name__(self):
         return self.__class__.__name__
+
+class ForceLayoutGPU(Layout):
+    def __init__(self):
+        pass
+    
+    def __call__(self, G):
+        pass
 
 class ForceLayout(Layout):
     def __init__(self):
@@ -59,7 +66,12 @@ class LouvainLayout(Layout):
         node_clusters = louvain_partition(G, as_dict=True)
         pos = community_layout(G, node_clusters)
         return pos
-        
+
+class KatzCentralityLayout(Layout):
+    def __call__(self, G):
+        nodes_centrality = katz_centrality(G, as_dict=True)
+        pos = community_layout(G, nodes_centrality)
+        return pos
 
 class Kmeans(Layout):
     def __init__(self):
@@ -202,6 +214,7 @@ AVAILABLE = dict(
     # Cluster layouts
     cluster_layouts=None,
     louvain=LouvainLayout(),
+    katz_centrailty=KatzCentralityLayout(),
     #kmeans=Kmeans(),
 )
 

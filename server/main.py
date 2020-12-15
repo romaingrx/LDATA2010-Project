@@ -1,6 +1,6 @@
 import os
 
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions, Hex
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure, gmap
 from bokeh.layouts import row, column
@@ -26,14 +26,14 @@ curdoc().title = "Graph visualizer server"
 
 # --------- Display points -------- #
 
-TOOLTIPS = [
+NODES_TOOLTIPS = [
     ("person", "@name"),
     ("home latitude", "@home_lat"),
     ("home longitude", "@home_long"),
     ("degree", "@degree")
 ]
 
-plot = figure(toolbar_location="above", tooltips=TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **STATIC.figure)
+plot = figure(toolbar_location="above", tooltips=NODES_TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **STATIC.figure)
               #height_policy="fit", width_policy="max", aspect_ratio="auto")
 plot.xgrid.visible = False
 plot.ygrid.visible = False
@@ -206,16 +206,28 @@ tile_provider = get_provider(CARTODBPOSITRON)
 
 # range bounds supplied in web mercator coordinates
 p_maps = figure(x_range=(0.0, 0.1), y_range=(0.0, 0.1),
-           x_axis_type="mercator", y_axis_type="mercator")
+           x_axis_type="mercator", y_axis_type="mercator",
+                tooltips=NODES_TOOLTIPS)
 p_maps.add_tile(tile_provider)
 
 p_maps.circle(
     x="home_x",
     y="home_y",
     fill_color="colors",
+    line_color="#000000",
     radius=75,
     fill_alpha=1,
     source=CACHE.plot.nodes.source
+)
+
+p_maps.square(
+    x="loc_x",
+    y="loc_y",
+    fill_color="#FF0000",
+    line_color="#000000",
+    size=20,
+    fill_alpha=1.,
+    source=CACHE.plot.network.edges.source
 )
 #p_maps.add_glyph(CACHE.plot.nodes.source, map_circle_glyph)
 

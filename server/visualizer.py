@@ -8,10 +8,10 @@ from bokeh.models import Range1d
 from bokeh.models import BoxZoomTool
 
 from .io import JSONHandler
-from . import settings, layouts
+from . import settings, layouts, algorithms
 from .settings import LOGGER, CACHE, COLORS
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
-from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize, dummy_scale
+from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize, dummy_scale, timestep_cache
 
 class VisualizerHandler(object):
 
@@ -87,7 +87,7 @@ class Setter:
     NODE_BASED_ON = ["Same", None, "Degree",
                      #"infected"
                      ]
-    NODE_COLORS = ["random", None, "degree", None, "louvain"]
+    NODE_COLORS = ["random", None, "degree", "katz_centrality", None, "louvain"]
     __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues"), SnsPalette("husl")]
     ALL_PALETTES = {
         "random":lambda size:np.random.choice(Setter.__ALL_PALETTES)(size),
@@ -231,12 +231,15 @@ class Setter:
     
     @classmethod
     def node_colors(cls, update):
-        # TODO : degree : In progress
-        # TODO : cluster :
+        def color_from_layout(G, layout, palette):
+            partition = layout(G)
+            new_colors = assign_color_from_class(partition, palette)
+            return new_colors
+
+        # TODO : cluster : OK
         G = CACHE.ultra[CACHE.plot.timestep].G
         based_on = CACHE.plot.nodes.color_based_on
         palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
-        data = CACHE.plot.nodes.source.data
         n_nodes = NodesHelper.length(G)
         if based_on == "random":
             new_colors = np.array(palette(n_nodes))
@@ -248,15 +251,15 @@ class Setter:
             s_udegrees= udegrees[sidx]
             s_colors = colors[sidx]
             new_colors = s_colors[np.searchsorted(s_udegrees, degrees)]
-        elif based_on == "louvain":
-            with dummy_timelog("multigraph to weighted"):
-                M = GraphHelper.multigraph_to_weighted_graph(G)
-            nodes_cluster, score = cugraph.louvain(M)
-            nodes = np.array(list(nodes_cluster.keys()))
-            off_nodes = np.array(G.nodes)
-            clusters = np.array(list(nodes_cluster.values()))
-            s_clusters = ordered(off_nodes, nodes, clusters) # Need to sort the cluster cause the order is not keeped from louvain algo
-            new_colors = assign_color_from_class(s_clusters, palette)
+        elif based_on in ("louvain", "katz_centrality"):
+            new_colors = color_from_layout(G, algorithms.get(based_on), palette)
+            #W = timestep_cache().W
+            #nodes_cluster, score = cugraph.louvain(W)
+            #nodes = np.array(list(nodes_cluster.keys()))
+            #off_nodes = np.array(G.nodes)
+            #clusters = np.array(list(nodes_cluster.values()))
+            #s_clusters = ordered(off_nodes, nodes, clusters) # Need to sort the cluster cause the order is not keeped from louvain algo
+            #new_colors = assign_color_from_class(s_clusters, palette)
         else:
             LOGGER.warning(f"Color of nodes based on {based_on} not possible! Please choose between these types {cls.NODE_COLORS}")
 

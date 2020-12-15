@@ -5,6 +5,8 @@ import seaborn as sns
 from time import time_ns, sleep
 from collections import defaultdict
 from contextlib import contextmanager
+from pyproj import Transformer
+
 
 class AttrDict(dict):
     __setattr__ = dict.__setitem__
@@ -80,6 +82,8 @@ def create_new_timestep_dict():
         G=GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep),
         layouts=AttrDict()
     )
+    CACHE.ultra[CACHE.plot.timestep]["W"] = GraphHelper.multigraph_to_weighted_graph(CACHE.ultra[CACHE.plot.timestep]["G"])
+
 
 def timestep_cache():
     from .settings import CACHE
@@ -173,7 +177,15 @@ def dummy_timelog(desc):
     TIMELOGGER.info(f"{desc} :: {time_taken:.2f} {unity}")
 
 
-def wgs84_to_mercator(long, lat):
+def from_long_lat_to_mercator(long, lat):
+    if isinstance(long, float):
+        long = [long]
+        lat = [lat]
+    _tsf = Transformer.from_crs("EPSG:4326", "EPSG:3857")
+    x, y = _tsf.transform(long, lat)
+    return x, y
+
+def DEPRECATEDwgs84_to_mercator(long, lat):
     r = 6378137
     y = long * r * np.pi / 180.
     x = np.log(np.tan((90. + lat) * np.pi / 360.)) * r
@@ -182,6 +194,3 @@ def wgs84_to_mercator(long, lat):
 if __name__=='__main__':
     long = 50.8585209256615
     lat = 4.28512395570893
-    
-    x, y = wgs84_to_mercator(long, lat)
-    print(x, y)

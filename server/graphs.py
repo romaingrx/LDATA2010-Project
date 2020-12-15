@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 
 
-from .utils import AttrDict, list_of_dict_to_dict_of_list, dummy_timelog, wgs84_to_mercator
+from .utils import AttrDict, list_of_dict_to_dict_of_list, dummy_timelog, from_long_lat_to_mercator
 from .settings import CACHE
 
 
@@ -43,7 +43,7 @@ class GraphHelper(object):
             df[p] = le.transform(df[p].values.astype(str))
 
         # df["loc_long"], df["loc_lat"] = df["loc_lat"], df["loc_long"]
-        df["loc_x"], df["loc_y"] = wgs84_to_mercator(df["loc_long"].values, df["loc_lat"].values)
+        df["loc_x"], df["loc_y"] = from_long_lat_to_mercator(df["loc_long"].values, df["loc_lat"].values)
 
         with dummy_timelog("from pandas edges list"):
             G = nx.from_pandas_edgelist(df, source="person1", target="person2", edge_attr=("timestep", "infected1", "infected2", "loc_lat", "loc_long", "loc_x", "loc_y"), create_using=nx.OrderedMultiGraph)
@@ -54,7 +54,7 @@ class GraphHelper(object):
                 home_lat = df["home%d_lat"%n].values
                 home_long = df["home%d_long"%n].values
                 people = le.inverse_transform(nodes)
-                home_x, home_y = wgs84_to_mercator(home_long, home_lat)
+                home_x, home_y = from_long_lat_to_mercator(home_long, home_lat)
                 for n, p, lo, la, x, y in zip(nodes, people, home_long, home_lat, home_x, home_y):
                     G.nodes[n]["name"] = str(p)
                     G.nodes[n]["home_long"] = lo
