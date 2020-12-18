@@ -11,7 +11,7 @@ import tempfile
 from . import settings, layouts
 from .settings import COLUMNS_NAME, CACHE, LOGGER
 from .graphs import GraphHelper
-from .utils import base64ToString, dic_from_string
+from .utils import base64ToString, dic_from_string, deep_merge
 
 from collections import defaultdict
 
@@ -57,7 +57,7 @@ class JSONHandler(object):
         LOGGER.info(f"Update json config with {new_settings}")
         current_settings = cls.get_current_config()
         with open(settings.LAST_CONFIG_FILE, 'w+') as fd_json:
-            updated_settings = {**current_settings, **new_settings}
+            updated_settings = deep_merge(current_settings, new_settings)
             json.dump(updated_settings, fd_json)
     
     @classmethod

@@ -1,11 +1,18 @@
 import os
+import yaml
 import logging
 
+FILEPATH = os.path.realpath(__file__)
+SERVERDIR = os.path.dirname(FILEPATH)
+CONFIGYAML = os.path.join(SERVERDIR, "static", "theme.yaml")
+
+from bokeh.io import curdoc
+from bokeh.themes import Theme
 from bokeh.models import ColumnDataSource
 from dask.distributed import Client
 from dask_cuda import LocalCUDACluster
 
-from .utils import AttrDict
+from .utils import AttrDict, deep_merge
 
 
 COLUMNS_NAME = (
@@ -24,11 +31,26 @@ COLUMNS_NAME = (
 
 COLORS = AttrDict(
     black="#191a1a",
-    white="#000000",
+    white="#ffffff",
+
     purple="#c08bc7",
+    dark_purple="#330066",
+
+    light_gb="#d1e0e0",
+    very_light_gb="#f0f5f5"
 )
 
 STATIC = AttrDict(
+    theme=AttrDict(
+        attrs=AttrDict(
+            Figure=AttrDict(
+                background_fill_color=COLORS.very_light_gb,
+                border_fill_color=COLORS.light_gb,
+                background_fill_alpha=1.0
+            ),
+        ),
+    ),
+    h1=COLORS.dark_purple,
     background=AttrDict(
         color=COLORS.black,
     ),
@@ -41,7 +63,13 @@ STATIC = AttrDict(
     figure=AttrDict(
         x_range=[0, 1], # Needed to update the range later (why???)
         y_range=[0, 1],
-    )
+    ),
+    label=AttrDict(
+        border_line_color=COLORS.dark_purple,
+        background_fill_color=COLORS.light_gb,
+        background_fill_alpha=.75,
+    ),
+    nodes_info="""mean degree : %.2f"""
 )
 
 DEFAULT = AttrDict(
@@ -203,6 +231,17 @@ def create_globals():
         CACHE.plot.maps.widgets = AttrDict()
 
         reset_plot_dict()
+
+def update_theme():
+    theme = yaml.load(open(CONFIGYAML, 'r'))
+    to_update_theme = deep_merge(theme, STATIC.theme)
+    yaml_theme_str = yaml.dump(to_update_theme, default_flow_style=False, sort_keys=False)
+    LOGGER.info(f"Updated config to ::\n{yaml_theme_str}")
+    with open(CONFIGYAML, 'w') as fd:
+        fd.write(yaml_theme_str)
+    curdoc().theme = Theme(filename=CONFIGYAML)
+    return to_update_theme
+    
 
 def init(level=logging.DEBUG):
     global LOGGER, TIMELOGGER, CACHE

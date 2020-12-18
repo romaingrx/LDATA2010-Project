@@ -6,6 +6,8 @@ from time import time_ns, sleep
 from collections import defaultdict
 from contextlib import contextmanager
 from pyproj import Transformer
+from bokeh.models import Div
+
 
 
 class AttrDict(dict):
@@ -28,6 +30,21 @@ def dic_from_string(path_string, item, sep):
     elems = path_string.split(sep)
     dic = recursive_boy(elems, item)
     return dic
+
+def deep_merge(x, y):
+    z = x.copy()
+    for key in y.keys():
+        if key in x:
+            if isinstance(y[key], dict):
+                if isinstance(x[key], dict):
+                    z[key] = deep_merge(x[key], y[key])
+                else:
+                    z[key] = y[key]
+            else:
+                z[key] = y[key]
+        else:
+            z[key] = y[key]
+    return z
 
 
 def list_of_dict_to_dict_of_list(lst, idx=None):
@@ -95,8 +112,6 @@ def timestep_cache():
 def cur_graph():
     from .settings import CACHE
     return timestep_cache().G
-
-
 
 class SnsPalette:
     def __init__(self, color):
@@ -191,6 +206,29 @@ def DEPRECATEDwgs84_to_mercator(long, lat):
     x = np.log(np.tan((90. + lat) * np.pi / 360.)) * r
     return x, y
 
+def tooltips(l, color=None, fontweight="bold"):
+    from .settings import COLORS
+    color = color or COLORS.purple 
+    
+    base = """<div>%s</div>"""
+    div = f"""<div><span style=\"font-weight: {fontweight}\"><font color={color}>%s</font>: %s</div></span>"""
+    stack_div = ""
+    for k, v in l:
+        stack_div += div%(k, v)
+    return base%stack_div
+
+
+def h1(text):
+    from .settings import STATIC
+    return Div(text=f"<font color={STATIC.h1}><h1>{text}</h1></font>")
+
 if __name__=='__main__':
     long = 50.8585209256615
     lat = 4.28512395570893
+
+
+    a_dict = dict(prout=42, dylan=dict(patrick="oui", bob="dylan"))
+    b_dict = dict(dylan=dict(bob="kob"))
+
+    z = deep_merge(a_dict, b_dict)
+    print(z)

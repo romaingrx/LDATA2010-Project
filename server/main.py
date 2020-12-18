@@ -1,9 +1,10 @@
 import os
 
-from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions, Hex
+from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions, Hex, Label
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure, gmap
 from bokeh.layouts import row, column
+from bokeh.themes import Theme
 
 #import holoviews as hv
 #hv.extension('bokeh')
@@ -12,15 +13,19 @@ from bokeh.layouts import row, column
 from . import settings, layouts
 from .graphs import NodesHelper
 from .io import FileInputHandler
-from .utils import AttrDict, from_dict_to_menu, cur_graph, resize
+from .utils import AttrDict, from_dict_to_menu, cur_graph, resize, h1, tooltips
 from .visualizer import VisualizerHandler, Setter
-from .settings import CACHE, STATIC
+from .settings import CACHE, STATIC, update_theme
 
 GOOGLE_APIKEY = os.environ["GOOGLE_APIKEY"]
 
 # GLOBAL VARIABLES
 
+update_theme()
 curdoc().title = "Graph visualizer server"
+
+
+CACHE.plot.nodes.source.selected.on_change("indices", VisualizerHandler.selected_nodes_callback)
 
 #---------------------------------------------------------------------------------------------------- 
 
@@ -33,11 +38,19 @@ NODES_TOOLTIPS = [
     ("degree", "@degree")
 ]
 
+NODES_TOOLTIPS = tooltips(NODES_TOOLTIPS)
+
+EDGES_TOOLTIPS = [
+    ("timestep", "@timestep"),
+    ("link", "@person1 - @person2"),
+    ("infected", "@infected1 - @infected2")
+]
+
 plot = figure(toolbar_location="above", tooltips=NODES_TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **STATIC.figure)
               #height_policy="fit", width_policy="max", aspect_ratio="auto")
 plot.xgrid.visible = False
 plot.ygrid.visible = False
-#plot.axis.visible = False
+plot.axis.visible = False
 plot.title.text = "Graph visualizer"
 
 bezier_glyph = Bezier(
@@ -75,7 +88,19 @@ nodes_glyph = Circle(
 plot.toolbar.autohide = True
 plot.add_glyph(CACHE.plot.nodes.source, nodes_glyph)
 
+nodes_info = Label(
+    x=10, y=535, 
+    x_units="screen", y_units="screen", 
+    text="prout",
+    render_mode="css",
+    **STATIC.label
+)
+plot.add_layout(nodes_info)
+
+CACHE.plot.nodes_info = nodes_info
 CACHE.plot.p = plot
+
+Setter.nodes_metrics(True)
 
 #plot.select_one(HoverTool).tooltips = TOOLTIPS
 
@@ -111,7 +136,7 @@ CACHE.widgets.timestep_slider = timestep_slider
 
 # ------------------ Layouts widgets ------------------- #
 
-layout_title = Div(text="<h1>Layout settings</h1>")
+layout_title = h1("Layout settings")
 
 layout_algo_dropdown = Dropdown(label="Layout algorithm", menu=from_dict_to_menu(layouts.AVAILABLE))
 layout_algo_dropdown.on_event('menu_item_click', VisualizerHandler.layout_algo_callback)
@@ -119,7 +144,7 @@ CACHE.widgets.layout_algo_dropdown = layout_algo_dropdown
 
 # ------------------ Edges widgets ------------------- #
 
-edges_title = Div(text="<h1>Edges settings</h1>")
+edges_title = h1("Edges settings")
 
 thickness_slider = Slider(title="Edge thickness", start=.05, end=5, value=CACHE.plot.network.edges.thickness, step=.05, **STATIC.widget.slider)
 thickness_slider.on_change('value_throttled', VisualizerHandler.thickness_callback)
@@ -131,7 +156,7 @@ CACHE.widgets.palette_dropdown = palette_dropdown
 
 # ------------------ Nodes widgets ------------------- #
 
-nodes_title = Div(text="<h1>Nodes settings</h1>")
+nodes_title = h1("Nodes settings")
 
 node_size_slider = Slider(title="Node size", start=1, end=50, value=CACHE.plot.nodes.size, step=1, **STATIC.widget.slider)
 node_size_slider.on_change('value_throttled', VisualizerHandler.node_size_callback)
@@ -155,7 +180,7 @@ CACHE.widgets.color_picker = color_picker
 
 # -------------------------------------- Statistics visualisation ----------------------------------------------------
 
-default_stat_tools = "save,hover"
+default_stat_tools = "save,hover,"
 
 adjacency_tooltips = [
     ("Weight", "@size")
@@ -181,10 +206,10 @@ degree_distribution_tooltips = [
     ("Counts", "@counts"),
 ]
 
-p_degree_distribution = figure(title="Degree distribution", tooltips=degree_distribution_tooltips, toolbar_location="above", tools=default_stat_tools, output_backend="webgl", **STATIC.figure)
+p_degree_distribution = figure(title="Degree distribution", tooltips=degree_distribution_tooltips, toolbar_location="above", tools=default_stat_tools+"pan,wheel_zoom", output_backend="webgl", **STATIC.figure)
 p_degree_distribution.xgrid.visible = False
 p_degree_distribution.ygrid.visible = False
-p_degree_distribution.axis.visible = False
+#p_degree_distribution.axis.visible = False
 degree_distribution_glyph = Rect(
     x="x",
     y="y",
@@ -205,30 +230,31 @@ from bokeh.tile_providers import get_provider, CARTODBPOSITRON, OSM
 tile_provider = get_provider(CARTODBPOSITRON)
 
 # range bounds supplied in web mercator coordinates
-p_maps = figure(x_range=(0.0, 0.1), y_range=(0.0, 0.1),
-           x_axis_type="mercator", y_axis_type="mercator",
-                tooltips=NODES_TOOLTIPS)
+p_maps = figure(x_axis_type="mercator", y_axis_type="mercator",
+                tooltips=NODES_TOOLTIPS, output_backend="webgl", **STATIC.figure)
 p_maps.add_tile(tile_provider)
+
+p_maps.diamond(
+    x="loc_x",
+    y="loc_y",
+    fill_color="#FF0000",
+    line_color="#FF0000",
+    size=4,
+    fill_alpha=.4,
+    source=CACHE.plot.network.edges.source
+)
 
 p_maps.circle(
     x="home_x",
     y="home_y",
     fill_color="colors",
     line_color="#000000",
-    radius=75,
+    size=4,
     fill_alpha=1,
     source=CACHE.plot.nodes.source
 )
 
-p_maps.square(
-    x="loc_x",
-    y="loc_y",
-    fill_color="#FF0000",
-    line_color="#000000",
-    size=20,
-    fill_alpha=1.,
-    source=CACHE.plot.network.edges.source
-)
+
 #p_maps.add_glyph(CACHE.plot.nodes.source, map_circle_glyph)
 
 CACHE.plot.maps.p_maps = p_maps
@@ -298,7 +324,7 @@ statistics_layout = row(
 
 map_layout = row(
     control_pannel,
-    p_maps
+    column(p_maps, sizing_mode="stretch_both")
 )
 
 

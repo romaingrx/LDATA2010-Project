@@ -9,7 +9,7 @@ from bokeh.models import BoxZoomTool
 
 from .io import JSONHandler
 from . import settings, layouts, algorithms
-from .settings import LOGGER, CACHE, COLORS
+from .settings import LOGGER, STATIC, CACHE, COLORS
 from .graphs import EdgesHelper, NodesHelper, GraphHelper
 from .utils import AttrDict, cur_graph, SnsPalette, assign_color_from_class, dummy_timelog, ordered, resize, dummy_scale, timestep_cache
 
@@ -46,6 +46,7 @@ class VisualizerHandler(object):
     @classmethod
     @JSONHandler.update(path="plot.nodes.size")
     def node_size_callback(cls, attr, old, new):
+        print("HERE")
         CACHE.plot.nodes.size = int(new)
         Setter.node_sizes(update=True)
 
@@ -82,6 +83,12 @@ class VisualizerHandler(object):
         #CACHE.widgets.renderer_button.background = COLORS.white if current_idx == 0 else COLORS.purple
         CACHE.renderers.current = next_idx
         #Setter.change_renderers(current)
+    
+    @classmethod
+    def selected_nodes_callback(cls, attr, old, new):
+        Setter.nodes_metrics(update=True, indices=new if new!=[] else None)        
+
+
 
 class Setter:
     NODE_BASED_ON = ["Same", None, "Degree",
@@ -360,8 +367,9 @@ class Setter:
     def degree_distribution(cls, update):
         metrics = cls.degree_distribution_metrics(False)
         colors = cls.degree_distribution_colors(False)
-        ret_dict = dict(**metrics, **colors)
+        ret_dict = AttrDict(**metrics, **colors)
         if update:
+            CACHE.plot.statistics.degree_distribution.p.xaxis.major_label_overrides = dict(zip(np.arange(len(ret_dict.degree)), ret_dict.degree+1))
             CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
             return ret_dict
 
@@ -371,11 +379,13 @@ class Setter:
         nodes_degrees = dict(G.degree())
         degrees = list(nodes_degrees.values())
         udegrees, counts = np.unique(degrees, return_counts=True)
-        sidx = np.argsort(counts)[::-1]
+        sidx = np.argsort(counts)
         udegrees, counts = udegrees[sidx], counts[sidx]
 
         x = np.arange(len(counts))
+        x = udegrees        
         y = counts / 2
+
 
         width = .85 * np.ones_like(udegrees)
 
@@ -393,8 +403,8 @@ class Setter:
             counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
             x = CACHE.plot.statistics.degree_distribution.source.data["x"]
             width = CACHE.plot.statistics.degree_distribution.source.data["width"]
-            p.y_range.start = -.05; p.y_range.end = 1.05 * counts[0]
-            p.x_range.start = x[0]-.75*width[0]; p.x_range.end = x[-1]+.75*width[-1]
+            p.y_range.start = -.01; p.y_range.end = 1.05 * np.max(counts)
+            p.x_range.start = np.min(x)-.75*width[0]; p.x_range.end = np.max(x)+.75*width[-1]
             return True
         return False
 
@@ -402,7 +412,8 @@ class Setter:
     def degree_distribution_colors(cls, update):
         palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
         counts = CACHE.plot.statistics.degree_distribution.source.data["counts"]
-        colors = palette(len(counts))[::-1]
+        #colors = palette(len(counts))[::-1]
+        colors = assign_color_from_class(counts, palette)
         ret_dict = dict(colors=colors)
         if update:
             CACHE.plot.statistics.degree_distribution.source.data.update(ret_dict)
@@ -421,3 +432,17 @@ class Setter:
             LOGGER.info(f"Resized maps :: x_range {x_merc_range} :: y_range {y_merc_range}")
             return True
         return False
+
+    @classmethod
+    def nodes_metrics(cls, update, indices=None):
+        G = cur_graph()
+        degrees = NodesHelper.get_degree(G)
+        if indices is not None:
+            indices = np.array(indices)
+            degrees = degrees[indices]
+        mean_degree = np.mean(degrees)
+        s = STATIC.nodes_info%(mean_degree)
+        if update:
+            CACHE.plot.nodes_info.text = s
+        return s
+

@@ -1,0 +1,15 @@
+attrs:
+  Axis:
+    axis_line_color: null
+  Figure:
+    background_fill_color: '#f0f5f5'
+    border_fill_color: '#d1e0e0'
+    outline_line_color: '#444444'
+    background_fill_alpha: 1.0
+  Grid:
+    grid_line_alpha: 1.0
+    grid_line_dash:
+    - 6
+    - 4
+  Title:
+    text_color: black

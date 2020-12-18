@@ -44,6 +44,7 @@ class GraphHelper(object):
 
         # df["loc_long"], df["loc_lat"] = df["loc_lat"], df["loc_long"]
         df["loc_x"], df["loc_y"] = from_long_lat_to_mercator(df["loc_long"].values, df["loc_lat"].values)
+        df["infected1"], df["infected2"] = df["infected1"].values.astype(bool), df["infected2"].values.astype(bool)
 
         with dummy_timelog("from pandas edges list"):
             G = nx.from_pandas_edgelist(df, source="person1", target="person2", edge_attr=("timestep", "infected1", "infected2", "loc_lat", "loc_long", "loc_x", "loc_y"), create_using=nx.OrderedMultiGraph)
