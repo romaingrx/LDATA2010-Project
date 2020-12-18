@@ -91,10 +91,10 @@ class VisualizerHandler(object):
 
 
 class Setter:
-    NODE_BASED_ON = ["Same", None, "Degree",
+    NODE_BASED_ON = ["Same", None, "Degree","Katz centrality"
                      #"infected"
                      ]
-    NODE_COLORS = ["random", None, "degree", "katz_centrality", None, "louvain"]
+    NODE_COLORS = ["Random", None, "Degree", "Katz centrality", None, "Louvain"]
     __ALL_PALETTES = [SnsPalette("BuPu"), SnsPalette("Blues"), SnsPalette("husl")]
     ALL_PALETTES = {
         "random":lambda size:np.random.choice(Setter.__ALL_PALETTES)(size),
@@ -104,7 +104,7 @@ class Setter:
         "categorical":None,
         "husl":__ALL_PALETTES[2]
     }
-    RENDERERS = ["Space visualisation", "Statistics visualisation", "Maps visualisation"]
+    RENDERERS = ["Network visualisation", "Statistics visualisation", "Maps visualisation"]
 
     @classmethod
     def all(cls, update=True):
@@ -114,7 +114,7 @@ class Setter:
         n_dict = cls.nodes(update=False)
 
         adj_dict = cls.adjacency_metrics(update=False)
-        degree_dist = cls.degree_distribution_metrics(update)
+        _degree_dist = cls.degree_distribution_metrics(update)
         if update:
             CACHE.plot.network.edges.source.data.update(
                 dict(
@@ -150,15 +150,11 @@ class Setter:
             CACHE.plot.network.edges.source.data.update(
                 dict(
                     **g_dict.edges
-                    #xs=g_dict["xs"],
-                    #ys=g_dict["ys"],
                 )
             )
             CACHE.plot.nodes.source.data.update(
                 dict(
                     **g_dict.nodes
-                    #x=g_dict["x"],
-                    #y=g_dict["y"],
                 )
             )
             cls.node_sizes(update=True)
@@ -169,7 +165,6 @@ class Setter:
         nodes = cls.node_colors(update=update)
         adjacency = cls.adjacency_colors(update=update)
         degree_distribution = cls.degree_distribution_colors(update=update)
-        cls.plot_colors()
         return dict(nodes=nodes, adjacency=adjacency, degree_distribution=degree_distribution)
 
     @classmethod
@@ -178,13 +173,6 @@ class Setter:
         cls.adjacency_resize()
         cls.maps_resize()
         layouts.resize_x_y_fig()
-
-    @classmethod
-    def plot_colors(cls):
-        N = 20
-        palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
-        #overlay = CACHE.plot.p.select_one(BoxZoomTool).overlay
-        #overlay.line_color = palette(N)[random.randint(0, N-1)]
 
 
     @classmethod
@@ -202,10 +190,6 @@ class Setter:
 
     @classmethod
     def node_sizes(cls, update):
-
-
-
-        # TODO : adjust node size based on max x,y values (surface covered)
         # Hyperparams
         FACTOR = 5
         NODE_SIZE_MAX = .0025
@@ -217,8 +201,6 @@ class Setter:
             x = CACHE.plot.nodes.source.data["x"]
             y = CACHE.plot.nodes.source.data["y"]
             surface = (x.max() - x.min())*(y.max() - y.min())
-        #    surface = max(100, surface)
-        #    print(f"Surface {surface}")
         else:
             surface = 1
         if basedon == "Same":
@@ -226,6 +208,10 @@ class Setter:
         elif basedon == "Degree":
             degrees = NodesHelper.get_degree(G)
             new_value = degrees
+        elif basedon == "Katz centrality":
+            W = timestep_cache().W
+            katz_centrality = algorithms.katz_centrality(W)
+            new_value = katz_centrality
         else:
             LOGGER.warning(f"Size of nodes based on {basedon} not known")
             return []
@@ -243,30 +229,17 @@ class Setter:
             new_colors = assign_color_from_class(partition, palette)
             return new_colors
 
-        # TODO : cluster : OK
-        G = CACHE.ultra[CACHE.plot.timestep].G
+        G = cur_graph()
         based_on = CACHE.plot.nodes.color_based_on
         palette = CACHE.get("palette", Setter.ALL_PALETTES["random"])
         n_nodes = NodesHelper.length(G)
-        if based_on == "random":
+        if based_on == "Random":
             new_colors = np.array(palette(n_nodes))
-        elif based_on == "degree":
+        elif based_on == "Degree":
             degrees = NodesHelper.get_degree(G)
-            udegrees = np.unique(degrees)
-            colors = palette(len(udegrees))
-            sidx = udegrees.argsort()
-            s_udegrees= udegrees[sidx]
-            s_colors = colors[sidx]
-            new_colors = s_colors[np.searchsorted(s_udegrees, degrees)]
-        elif based_on in ("louvain", "katz_centrality"):
+            new_colors = assign_color_from_class(degrees, palette)
+        elif based_on in ("Louvain", "Katz centrality"):
             new_colors = color_from_layout(G, algorithms.get(based_on), palette)
-            #W = timestep_cache().W
-            #nodes_cluster, score = cugraph.louvain(W)
-            #nodes = np.array(list(nodes_cluster.keys()))
-            #off_nodes = np.array(G.nodes)
-            #clusters = np.array(list(nodes_cluster.values()))
-            #s_clusters = ordered(off_nodes, nodes, clusters) # Need to sort the cluster cause the order is not keeped from louvain algo
-            #new_colors = assign_color_from_class(s_clusters, palette)
         else:
             LOGGER.warning(f"Color of nodes based on {based_on} not possible! Please choose between these types {cls.NODE_COLORS}")
 
@@ -293,7 +266,6 @@ class Setter:
 
     @classmethod
     def graph_attribute(cls, update):
-        #G = GraphHelper.subgraph_from_timestep(CACHE.graph, CACHE.plot.timestep)
         G = cur_graph()
         nodes_attr = NodesHelper.get_all_attributes(G)
         edges_attr = EdgesHelper.get_all_attributes(G)

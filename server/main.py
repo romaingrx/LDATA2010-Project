@@ -1,6 +1,7 @@
 import os
 
 from bokeh.models import ColumnDataSource, Circle, Plot, Div, ColorPicker, Dropdown, Slider, GraphRenderer, MultiLine, HoverTool, Ellipse, Div, Button, Rect, Text, Bezier, GMapOptions, Hex, Label
+from bokeh.tile_providers import get_provider, CARTODBPOSITRON, OSM
 from bokeh.models.widgets import FileInput
 from bokeh.plotting import curdoc, figure, gmap
 from bokeh.layouts import row, column
@@ -15,9 +16,10 @@ from .graphs import NodesHelper
 from .io import FileInputHandler
 from .utils import AttrDict, from_dict_to_menu, cur_graph, resize, h1, tooltips
 from .visualizer import VisualizerHandler, Setter
-from .settings import CACHE, STATIC, update_theme
+from .settings import CACHE, STATIC, COLORS, update_theme
 
 GOOGLE_APIKEY = os.environ["GOOGLE_APIKEY"]
+SIZE_KWARGS = dict(width=1275, height=950)
 
 # GLOBAL VARIABLES
 
@@ -31,27 +33,24 @@ CACHE.plot.nodes.source.selected.on_change("indices", VisualizerHandler.selected
 
 # --------- Display points -------- #
 
-NODES_TOOLTIPS = [
+NODES_TOOLTIPS = tooltips([
     ("person", "@name"),
-    ("home latitude", "@home_lat"),
-    ("home longitude", "@home_long"),
+    ("home latitude", "@home_long"),
+    ("home longitude", "@home_lat"),
     ("degree", "@degree")
-]
+])
 
-NODES_TOOLTIPS = tooltips(NODES_TOOLTIPS)
-
-EDGES_TOOLTIPS = [
+EDGES_TOOLTIPS = tooltips([
     ("timestep", "@timestep"),
     ("link", "@person1 - @person2"),
     ("infected", "@infected1 - @infected2")
-]
+])
 
-plot = figure(toolbar_location="above", tooltips=NODES_TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **STATIC.figure)
-              #height_policy="fit", width_policy="max", aspect_ratio="auto")
+plot = figure(title="Network visualisation",toolbar_location="above", tooltips=NODES_TOOLTIPS, tools=settings.PLOT_TOOLS, output_backend="webgl", **SIZE_KWARGS, **STATIC.figure)
+
 plot.xgrid.visible = False
 plot.ygrid.visible = False
 plot.axis.visible = False
-plot.title.text = "Graph visualizer"
 
 bezier_glyph = Bezier(
     x0="x0",
@@ -67,15 +66,6 @@ bezier_glyph = Bezier(
     line_alpha=.5
 )
 plot.add_glyph(CACHE.plot.network.edges.source, bezier_glyph)
-
-#edges_glyph = MultiLine(
-#    xs="xs",
-#    ys="ys",
-#    line_color="colors",
-#    line_width="thickness",
-#    line_alpha=.5
-#)
-#plot.add_glyph(CACHE.plot.network.edges.source, edges_glyph)
 
 nodes_glyph = Circle(
     x="x",
@@ -96,28 +86,12 @@ nodes_info = Label(
     **STATIC.label
 )
 plot.add_layout(nodes_info)
+nodes_info.visible = False
 
 CACHE.plot.nodes_info = nodes_info
 CACHE.plot.p = plot
 
 Setter.nodes_metrics(True)
-
-#plot.select_one(HoverTool).tooltips = TOOLTIPS
-
-
-
-#graph_plot = from_networkx(nx.karate_club_graph(), nx.circular_layout, scale=2, center=(0,0))
-#CACHE.plot.graph = graph_plot
-#plot.renderers.append(graph_plot)
-
-
-""" holoview
-renderer = hv.renderer('bokeh').instance(mode='server')
-plot_graph = hv.Graph.from_networkx(CACHE.graph, nx.layout.fruchterman_reingold_layout).opts(toolbar="above", width=800, height=800, xaxis=None, yaxis=None)
-CACHE.plot.graph = plot_graph
-hvplot = renderer.get_plot(plot_graph, curdoc())
-plot=hvplot.state
-"""
 
 # ---------- Set all callbacks and buttons ---------- # 
 
@@ -126,7 +100,7 @@ file_input.on_change('value', FileInputHandler.callback)
 CACHE.widgets.file_input = file_input
 
 
-renderer_button = Button(label="Statistics visualisation")
+renderer_button = Button(button_type="warning", label="Statistics visualisation")
 renderer_button.on_click(VisualizerHandler.renderer_visualisation_callback)
 CACHE.widgets.renderer_button = renderer_button
 
@@ -223,16 +197,12 @@ p_degree_distribution.add_glyph(CACHE.plot.statistics.degree_distribution.source
 CACHE.plot.statistics.degree_distribution.p = p_degree_distribution
 
 
-# Google maps dispo
+# Maps dispo
 
-from bokeh.tile_providers import get_provider, CARTODBPOSITRON, OSM
 
-tile_provider = get_provider(CARTODBPOSITRON)
-
-# range bounds supplied in web mercator coordinates
 p_maps = figure(x_axis_type="mercator", y_axis_type="mercator",
-                tooltips=NODES_TOOLTIPS, output_backend="webgl", **STATIC.figure)
-p_maps.add_tile(tile_provider)
+                tooltips=NODES_TOOLTIPS, toolbar_location="above", output_backend="webgl", **SIZE_KWARGS, **STATIC.figure)
+p_maps.add_tile(get_provider(CARTODBPOSITRON))
 
 p_maps.diamond(
     x="loc_x",
@@ -254,15 +224,9 @@ p_maps.circle(
     source=CACHE.plot.nodes.source
 )
 
-
-#p_maps.add_glyph(CACHE.plot.nodes.source, map_circle_glyph)
-
 CACHE.plot.maps.p_maps = p_maps
 
-
 # Layout disposition
-
-#div = Div(text="<hr class=\"solid\">", css_classes=["hr.solid {border-top: 3px solid #bbb;}"])
 
 top_pannel = column(
     row(file_input, renderer_button),
@@ -302,9 +266,12 @@ control_pannel = column(
     #height_policy="fit",
 )
 
+
+
+
 space_layout = row(
     control_pannel,
-    column(plot, sizing_mode="stretch_both")
+    column(plot, **SIZE_KWARGS)
            #width_policy="max", height_policy="max")
 )
 
@@ -316,7 +283,7 @@ graphs = row(p_adjacency, p_degree_distribution)
 statistics_layout = row(
     control_pannel,
     #graphs,
-    column(graphs, sizing_mode="stretch_both")
+    column(graphs, **SIZE_KWARGS)
 )
 
 
@@ -324,7 +291,7 @@ statistics_layout = row(
 
 map_layout = row(
     control_pannel,
-    column(p_maps, sizing_mode="stretch_both")
+    column(p_maps, **SIZE_KWARGS)
 )
 
 

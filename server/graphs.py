@@ -1,11 +1,11 @@
-import networkx as nx
-import pandas as pd
 import numpy as np
+import pandas as pd
+import networkx as nx
 from sklearn.preprocessing import LabelEncoder
 
 
-from .utils import AttrDict, list_of_dict_to_dict_of_list, dummy_timelog, from_long_lat_to_mercator
 from .settings import CACHE
+from .utils import AttrDict, list_of_dict_to_dict_of_list, dummy_timelog, from_long_lat_to_mercator
 
 
 class GraphHelper(object):
@@ -246,6 +246,3 @@ class NodesHelper:
     #    home_lat = cls.get_attribute(G, "home_lat")
     #    return np.mean(home_long),
         
-
-
-

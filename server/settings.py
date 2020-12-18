@@ -45,6 +45,7 @@ STATIC = AttrDict(
         attrs=AttrDict(
             Figure=AttrDict(
                 background_fill_color=COLORS.very_light_gb,
+                #background_fill_color=COLORS.white,
                 border_fill_color=COLORS.light_gb,
                 background_fill_alpha=1.0
             ),

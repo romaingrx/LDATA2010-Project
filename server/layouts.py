@@ -1,9 +1,11 @@
 import random
+import math
 import numpy as np
 import numpy_indexed as npi
 import pandas as pd
 import networkx as nx
 from bokeh.models import Range1d
+from functools import partial
 from abc import ABC, abstractclassmethod
 from threading import Thread
 from multiprocessing import Process
@@ -23,6 +25,13 @@ def random_layout(G:nx.Graph):
 class Layout:
     def __name__(self):
         return self.__class__.__name__
+
+
+class SpringLayout(Layout):
+    def __call__(self, G):
+        k = math.sqrt(len(G.nodes))
+        W = GraphHelper.multigraph_to_weighted_graph(G)
+        return nx.drawing.layout.spring_layout(W, k=k)
 
 class ForceLayoutGPU(Layout):
     def __init__(self):
@@ -49,14 +58,14 @@ class ForceLayout(Layout):
                           # Tuning
                           scalingRatio=1.0,
                           strongGravityMode=True,
-                          gravity=.75,
+                          gravity=.5,
 
                           # Log
                           verbose=True)
     
     
     def __call__(self, G):
-        layout = self.fa2.forceatlas2_networkx_layout(G, pos=None, iterations=100)
+        layout = self.fa2.forceatlas2_networkx_layout(G, pos=None, iterations=200)
         return layout
 
 class LouvainLayout(Layout):
@@ -72,6 +81,12 @@ class KatzCentralityLayout(Layout):
         nodes_centrality = katz_centrality(G, as_dict=True)
         pos = community_layout(G, nodes_centrality)
         return pos
+
+#class SpectralClustering(Layout):
+#    def __call__(self, G):
+#        nodes_spectral_clusters = spectral_cluster(G, as_dict=True)
+#        pos = community_layout(G, nodes_spectral_clusters)
+#        return pos
 
 class Kmeans(Layout):
     def __init__(self):
@@ -191,6 +206,9 @@ def apply_on_graph(G, update=False):
 
     return AttrDict(nodes=AttrDict(x=x, y=y), edges=AttrDict(xs=xs, ys=ys, x0=x0, x1=x1, y0=y0, y1=y1, cx0=[w+.5 for w in x0]))
 
+class Twopi(Layout):
+    def __call__(self, G):
+        return nx.drawing.nx_agraph.graphviz_layout(G, prog="twopi")
 
 AVAILABLE = dict(
     # Simple layouts
@@ -198,24 +216,28 @@ AVAILABLE = dict(
 
     random=random_layout,
     circular=nx.circular_layout,
+    twopi=Twopi(),
 
     networkx_layouts=None,
 
     # Networkx layouts
-    spring=nx.spring_layout,
     spectral=nx.drawing.layout.spectral_layout,
-    fruchterman_reingold=nx.layout.fruchterman_reingold_layout,
-    kamada_kawai=nx.layout.kamada_kawai_layout,
 
     # Force layouts
     force_layouts=None,
+    spring=SpringLayout(),
     forceatlas2=ForceLayout(),
+    #fruchterman_reingold=nx.layout.fruchterman_reingold_layout,
+    #kamada_kawai=nx.layout.kamada_kawai_layout,
 
     # Cluster layouts
     cluster_layouts=None,
     louvain=LouvainLayout(),
-    katz_centrailty=KatzCentralityLayout(),
+    katz_centrality=KatzCentralityLayout(),
     #kmeans=Kmeans(),
+
+    # Experimental
+    exp=None,
 )
 
 def get(key:str):
